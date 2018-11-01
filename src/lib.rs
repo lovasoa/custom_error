@@ -41,6 +41,7 @@
 ///     "The reindeer has 8 legs",
 ///     SantaError::InvalidReindeer{legs:8}.to_string()
 /// );
+/// ```
 ///
 #[macro_export]
 macro_rules! custom_error {
