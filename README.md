@@ -1,11 +1,11 @@
 # Rust custom error
 
-This is a rust crate containing a macro that should make it more
-easy to define custom errors without having to write a lot of boilerplate code.
+This crate contains a macro that should make it easier
+to define custom errors without having to write a lot of boilerplate code.
 
 The `custom_error!` macro included in this crate takes a type name
-and a list of error cases and generates a rust enumeration of all the test cases,
-together with two the required `impl` blocks implementing `std::error::Error`
+and a list of possible errors and generates a rust enumeration for all the cases,
+together with the required `impl` blocks implementing `std::error::Error`
 and `std::fmt::Display`. 
 
 You can now write
@@ -72,10 +72,12 @@ assert_eq!(
         name: "Thomas".into(),
         foolishness: 108
     }.to_string());
+
 assert_eq!(
     "The location you indicated is too far from the north pole",
     SantaError::TooFar.to_string()
 );
+
 assert_eq!(
     "The reindeer has 8 legs",
     SantaError::InvalidReindeer{legs:8}.to_string()
