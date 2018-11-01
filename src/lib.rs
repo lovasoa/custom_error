@@ -20,9 +20,9 @@
 /// use custom_error::custom_error;
 ///
 /// custom_error!(SantaError
-///     BadChild{name:String, foolishness:u8} = "{} has been bad {} times this year",
+///     BadChild{name:String, foolishness:u8} = "{name} has been bad {foolishness} times this year",
 ///     TooFar                                = "The location you indicated is too far from the north pole",
-///     InvalidReindeer{legs:u8}              = "The reindeer has {} legs"
+///     InvalidReindeer{legs:u8}              = "The reindeer has {legs} legs"
 /// );
 ///
 /// assert_eq!(
@@ -71,7 +71,7 @@ macro_rules! custom_error {
             {
                 match self {$(
                     $errtype::$field $( { $( $attr_name ),* } )* => {
-                        write!(f, $msg $( $( , $attr_name )* )*)
+                        write!(f, $msg $( $( , $attr_name = $attr_name )* )*)
                     }
                 ),*}
             }
@@ -98,7 +98,7 @@ mod tests {
     fn with_error_data() {
         custom_error!(MyError
             Bad                            = "bad",
-            Catastrophic{broken_things:u8} = "{} things are broken"
+            Catastrophic{broken_things:u8} = "{broken_things} things are broken"
         );
         assert_eq!("bad", MyError::Bad.to_string());
         assert_eq!(
@@ -109,8 +109,8 @@ mod tests {
 
     #[test]
     fn with_multiple_error_data() {
-        custom_error!(E X{a:u8, b:u8, c:u8} = "{} {} {}");
+        custom_error!(E X{a:u8, b:u8, c:u8} = "{c} {b} {a}");
 
-        assert_eq!("1 2 3", E::X { a: 1, b: 2, c: 3 }.to_string());
+        assert_eq!("3 2 1", E::X { a: 1, b: 2, c: 3 }.to_string());
     }
 }
