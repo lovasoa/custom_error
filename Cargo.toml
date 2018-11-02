@@ -12,3 +12,6 @@ keywords = ["error", "failure", "macro"]
 documentation = "https://docs.rs/custom_error"
 
 [dependencies]
+
+[badges]
+travis-ci = { repository = "lovasoa/custom_error", branch = "master" }
