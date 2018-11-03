@@ -11,10 +11,10 @@ and `std::fmt::Display`.
 You can now write
 
 ```rust
-custom_error!(MyError
+custom_error!{MyError
     Unknown{code:u8} = "unknown error with code {code}.",
     Err41            = "Sit by a lake"
-);
+}
 ```
 
 instead of
@@ -111,4 +111,13 @@ fn main() {
     let parse_result = parse_hex_file("/i'm not a file/");
     assert_eq!("unable to read from the file", parse_result.unwrap_err().to_string());
 }
+```
+
+## Visibility
+
+You can make an error type public by adding the `pub` keyword
+at the beginning of the declaration.
+
+```rust
+custom_error!{pub MyError A="error a" B="error b"}
 ```

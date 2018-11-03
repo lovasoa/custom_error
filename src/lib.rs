@@ -7,10 +7,10 @@
 /// ```
 /// use custom_error::custom_error;
 ///
-/// custom_error!(MyError
+/// custom_error!{ pub MyError
 ///     Bad      = "Something bad happened",
 ///     Terrible = "This is a very serious error!!!"
-/// );
+/// }
 /// assert_eq!("Something bad happened",          MyError::Bad.to_string());
 /// assert_eq!("This is a very serious error!!!", MyError::Terrible.to_string());
 /// ```
@@ -83,7 +83,10 @@
 ///
 #[macro_export]
 macro_rules! custom_error {
+    (pub $($tt:tt)*) => { $crate::custom_error!{ (pub) $($tt)* } };
+
     (
+        $( ($prefix:tt) )*
         $errtype:ident
         $(
             $field:ident
@@ -95,7 +98,7 @@ macro_rules! custom_error {
          ),*
     ) => {
         #[derive(Debug)]
-        enum $errtype {
+        $($prefix)* enum $errtype {
             $(
                 $field
                 $( { $( $attr_name : $attr_type ),* } )*
@@ -221,5 +224,11 @@ mod tests {
         let my_err = MyError::Two { x: 42, source: source() };
         assert_eq!("42", my_err.to_string());
         assert_eq!(source().to_string(), my_err.source().unwrap().to_string());
+    }
+
+    #[test]
+    fn pub_error() {
+        mod my_mod { custom_error! {pub MyError Case1="case1"} }
+        assert_eq!("case1", my_mod::MyError::Case1.to_string())
     }
 }
