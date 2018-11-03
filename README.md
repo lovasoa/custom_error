@@ -80,7 +80,7 @@ assert_eq!(
 ## Wrapping other error types
 
 If the cause of your error is another lower-level error, you can indicate that
-by adding a special `source` field to one of your error.
+by adding a special `source` field to one of your error cases.
 
 Thus, you can make your custom error wrap other error types,
 and the conversion from these foreign error types will be implemented automatically.
