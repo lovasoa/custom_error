@@ -39,9 +39,13 @@ impl std::fmt::Display for MyError {
 }
 ```
 
-# Examples
+## Simple error
 
-### Simple error
+To define a simple error, you only have to indicate three things:
+ * the name of your custom error type,
+ * the name of the different error cases,
+ * a human-readable description for each case.
+
 ```rust
 extern crate custom_error;
 use custom_error::custom_error;
@@ -50,12 +54,14 @@ custom_error!(MyError
     Bad      = "Something bad happened",
     Terrible = "This is a very serious error!!!"
 );
-
-assert_eq!("Something bad happened",          MyError::Bad.to_string());
-assert_eq!("This is a very serious error!!!", MyError::Terrible.to_string());
 ```
 
-### Custom error with parameters
+## Custom error with parameters
+
+You can store data inside your errors.
+In order to do so, indicate the name and types of the fields to want to store in curly braces
+after an error type.
+
 ```rust
 extern crate custom_error;
 use custom_error::custom_error;
@@ -68,18 +74,41 @@ custom_error!(SantaError
 
 assert_eq!(
     "Thomas has been bad 108 times this year",
-    SantaError::BadChild{
-        name: "Thomas".into(),
-        foolishness: 108
-    }.to_string());
+    SantaError::BadChild{name: "Thomas".into(), foolishness: 108}.to_string());
+```
 
-assert_eq!(
-    "The location you indicated is too far from the north pole",
-    SantaError::TooFar.to_string()
-);
+## Wrapping other error types
 
-assert_eq!(
-    "The reindeer has 8 legs",
-    SantaError::InvalidReindeer{legs:8}.to_string()
-);
+If the cause of your error is another lower-level error, you can indicate that
+by adding a special `source` field to one of your error.
+
+Thus, you can make your custom error wrap other error types,
+and the conversion from these foreign error types will be implemented automatically.
+
+```rust
+#[macro_use] extern crate custom_error;
+use std::{io, io::Read, fs::File, result::Result, num::ParseIntError};
+
+custom_error! {FileParseError
+    Io{source: io::Error}         = "unable to read from the file",
+    Format{source: ParseIntError} = "the file does not contain a valid integer",
+    TooLarge{value:u8}            = "the number in the file ({value}) is too large"
+}
+
+fn parse_hex_file(filename: &str) -> Result<u8, FileParseError> {
+    let mut contents = String::new();
+    // The '?' notation can convert from generic errors to our custom error type
+    File::open(filename)?.read_to_string(&mut contents)?;
+    let value = u8::from_str_radix(&contents, 16)?;
+    if value > 42 {
+        Err(FileParseError::TooLarge { value })
+    } else {
+        Ok(value)
+    }
+}
+
+fn main() {
+    let parse_result = parse_hex_file("/i'm not a file/");
+    assert_eq!("unable to read from the file", parse_result.unwrap_err().to_string());
+}
 ```
