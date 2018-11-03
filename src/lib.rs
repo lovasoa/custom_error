@@ -100,7 +100,7 @@ macro_rules! custom_error {
                 $field
                 $( { $( $attr_name : $attr_type ),* } )*
             ),*
-        };
+        }
 
         impl std::error::Error for $errtype {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
@@ -113,11 +113,11 @@ macro_rules! custom_error {
                     }
                 ),*}
             }
-        };
+        }
 
         $(
-            $( $crate::impl_error_conversion!($($attr_name, $attr_name, $attr_type,)* $errtype, $field) );*;
-        );*
+            $( $crate::impl_error_conversion!{$($attr_name, $attr_name, $attr_type,)* $errtype, $field} )*
+        )*
 
         impl std::fmt::Display for $errtype {
             fn fmt(&self, formatter: &mut std::fmt::Formatter)
