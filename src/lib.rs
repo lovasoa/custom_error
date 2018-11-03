@@ -87,7 +87,7 @@ macro_rules! custom_error {
 
     (
         $( ($prefix:tt) )*
-        $errtype:ident
+        $errtype:ident $( < $($type_param:ident),* > )*
         $(
             $field:ident
             $( {
@@ -98,14 +98,16 @@ macro_rules! custom_error {
          ),*
     ) => {
         #[derive(Debug)]
-        $($prefix)* enum $errtype {
+        $($prefix)* enum $errtype $( < $($type_param),* > )* {
             $(
                 $field
                 $( { $( $attr_name : $attr_type ),* } )*
             ),*
         }
 
-        impl std::error::Error for $errtype {
+        impl $( < $($type_param : std::fmt::Debug + std::fmt::Display),* > )* std::error::Error
+            for $errtype $( < $($type_param),* > )*
+        {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
             {
                 #[allow(unused_variables, unreachable_code)]
@@ -122,7 +124,9 @@ macro_rules! custom_error {
             $( $crate::impl_error_conversion!{$($attr_name, $attr_name, $attr_type,)* $errtype, $field} )*
         )*
 
-        impl std::fmt::Display for $errtype {
+        impl $( < $($type_param : std::string::ToString),* > )* std::fmt::Display
+            for $errtype $( < $($type_param),* > )*
+        {
             fn fmt(&self, formatter: &mut std::fmt::Formatter)
                 -> std::fmt::Result
             {
@@ -230,5 +234,12 @@ mod tests {
     fn pub_error() {
         mod my_mod { custom_error! {pub MyError Case1="case1"} }
         assert_eq!("case1", my_mod::MyError::Case1.to_string())
+    }
+
+    #[test]
+    fn generic_error() {
+        custom_error! {MyError<X,Y> E1{x:X,y:Y}="x={x} y={y}", E2="e2"}
+        assert_eq!("x=42 y=42", MyError::E1 { x: 42u8, y: 42u8 }.to_string());
+        assert_eq!("e2", MyError::E2::<u8, u8>.to_string());
     }
 }
