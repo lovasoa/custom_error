@@ -96,6 +96,7 @@ macro_rules! custom_error {
             =
             $msg:expr
          ),*
+         $(,)* // Trailing comma
     ) => {
         #[derive(Debug)]
         $($prefix)* enum $errtype $( < $($type_param),* > )* {
@@ -247,5 +248,15 @@ mod tests {
     fn single_error_case_with_braces() {
         custom_error! {MyError Bad="bad"}
         assert_eq!("bad", MyError::Bad.to_string())
+    }
+
+    #[test]
+    fn trailing_comma() {
+        custom_error! {MyError1 A="a",}
+        custom_error! {MyError2 A="a", B="b",}
+
+        assert_eq!("a", MyError1::A.to_string());
+        assert_eq!("a", MyError2::A.to_string());
+        assert_eq!("b", MyError2::B.to_string());
     }
 }
