@@ -50,10 +50,10 @@ To define a simple error, you only have to indicate three things:
 extern crate custom_error;
 use custom_error::custom_error;
 
-custom_error!(MyError
+custom_error!{MyError
     Bad      = "Something bad happened",
     Terrible = "This is a very serious error!!!"
-);
+}
 ```
 
 ## Custom error with parameters
@@ -66,11 +66,11 @@ after an error type.
 extern crate custom_error;
 use custom_error::custom_error;
 
-custom_error!(SantaError
+custom_error!{SantaError
     BadChild{name:String, foolishness:u8} = "{name} has been bad {foolishness} times this year",
     TooFar                                = "The location you indicated is too far from the north pole",
     InvalidReindeer{legs:u8}              = "The reindeer has {legs} legs"
-);
+}
 
 assert_eq!(
     "Thomas has been bad 108 times this year",

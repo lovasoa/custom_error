@@ -19,11 +19,11 @@
 /// ```
 /// use custom_error::custom_error;
 ///
-/// custom_error!(SantaError
+/// custom_error!{SantaError
 ///     BadChild{name:String, foolishness:u8} = "{name} has been bad {foolishness} times this year",
 ///     TooFar                                = "The location you indicated is too far from the north pole",
 ///     InvalidReindeer{legs:u8}              = "The reindeer has {legs} legs"
-/// );
+/// }
 ///
 /// assert_eq!(
 ///     "Thomas has been bad 108 times this year",
@@ -64,10 +64,10 @@
 /// use custom_error::custom_error;
 /// use std::{io, io::Read, fs::File, result::Result};
 ///
-/// custom_error!(MyError
+/// custom_error!{MyError
 ///     IO{source: io::Error} = "input/output error",
 ///     Unknown               = "unknown error"
-/// );
+/// }
 ///
 /// fn read_file(filename: &str) -> Result<String, MyError> {
 ///     let mut res = String::new();
@@ -241,5 +241,11 @@ mod tests {
         custom_error! {MyError<X,Y> E1{x:X,y:Y}="x={x} y={y}", E2="e2"}
         assert_eq!("x=42 y=42", MyError::E1 { x: 42u8, y: 42u8 }.to_string());
         assert_eq!("e2", MyError::E2::<u8, u8>.to_string());
+    }
+
+    #[test]
+    fn single_error_case_with_braces() {
+        custom_error! {MyError Bad="bad"}
+        assert_eq!("bad", MyError::Bad.to_string())
     }
 }
