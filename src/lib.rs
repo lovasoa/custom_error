@@ -81,6 +81,43 @@
 /// )
 /// ```
 ///
+///  ### Custom formatting function for error messages
+///
+/// If the format string syntax is not enough to express your complex error formatting needs,
+/// you can use custom code to generate your error description.
+///
+/// ```
+/// use custom_error::custom_error;
+///
+/// static lang : &'static str = "FR";
+///
+/// # fn localize(_:&str, _:&str) -> &'static str { "Un problème est survenu" }
+///
+/// custom_error!{ pub MyError
+///     Problem      = @{ localize(lang, "A problem occurred") },
+/// }
+///
+/// assert_eq!("Un problème est survenu", MyError::Problem.to_string());
+/// ```
+///
+/// ```
+/// use custom_error::custom_error;
+/// use std::io::Error;
+/// use std::io::ErrorKind::*;
+///
+/// custom_error!{ pub MyError
+///     Io{source: Error} = @{
+///         match source.kind() {
+///             NotFound => "The file does not exist",
+///             TimedOut => "The operation timed out",
+///             _ => "unknown error",
+///         }
+///     },
+/// }
+///
+/// assert_eq!("The operation timed out", MyError::Io{source: TimedOut.into()}.to_string());
+/// ```
+
 #[macro_export]
 macro_rules! custom_error {
     (pub $($tt:tt)*) => { $crate::custom_error!{ (pub) $($tt)* } };
@@ -100,7 +137,8 @@ macro_rules! custom_error {
                 $attr_type:ty // type of the attribute
             ),* } )*
             =
-            $msg:expr // The human-readable error message
+            $( @{ $($msg_fun:tt)* } )*
+            $($msg:expr)* // The human-readable error message
          ),*
          $(,)* // Trailing comma
     ) => {
@@ -139,11 +177,9 @@ macro_rules! custom_error {
             {
                 match self {$(
                     $errtype::$field $( { $( $attr_name ),* } )* => {
-                        write!(
-                            formatter,
-                            concat!($msg $( $( , "{", stringify!($attr_name), ":.0}" )* )*)
-                            $( $( , $attr_name = $attr_name.to_string() )* )*
-                        )
+                        $(write!(formatter, "{}", ($($msg_fun)*) )?;)*
+                        $crate::display_message!(formatter, $($($attr_name),*),* | $($msg)*);
+                        Ok(())
                     }
                 ),*}
             }
@@ -170,6 +206,19 @@ macro_rules! impl_error_conversion {
         }
     };
     ($($_:tt)*) => {};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! display_message {
+    ($formatter:expr, $($attr:ident),* | $msg:expr) => {
+        write!(
+            $formatter,
+            concat!($msg $(, "{", stringify!($attr), ":.0}" )*)
+            $( , $attr = $attr.to_string() )*
+        )?;
+    };
+    ($formatter:expr, $($attr:ident),* | ) => {};
 }
 
 #[cfg(test)]
@@ -264,5 +313,37 @@ mod tests {
         assert_eq!("a", MyError1::A.to_string());
         assert_eq!("a", MyError2::A.to_string());
         assert_eq!("b", MyError2::B.to_string());
+    }
+
+    #[test]
+    fn with_custom_formatting() {
+        custom_error! {MyError
+            Complex{a:u8, b:u8} = @{
+                if a+b == 0 {
+                    "zero".to_string()
+                } else {
+                    (a+b).to_string()
+                }
+            },
+            Simple = "simple"
+        }
+
+        assert_eq!("zero", MyError::Complex { a: 0, b: 0 }.to_string());
+        assert_eq!("3", MyError::Complex { a: 2, b: 1 }.to_string());
+        assert_eq!("simple", MyError::Simple.to_string());
+    }
+
+    #[test]
+    fn custom_format_source() {
+        use std::io;
+
+        custom_error! {MyError
+            Io{source:io::Error} = @{format!("IO Error occurred: {:?}", source.kind())}
+        }
+
+        assert_eq!(
+            "IO Error occurred: Interrupted",
+            MyError::Io { source: io::ErrorKind::Interrupted.into() }.to_string()
+        )
     }
 }

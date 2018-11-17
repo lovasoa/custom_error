@@ -77,6 +77,10 @@ assert_eq!(
     SantaError::BadChild{name: "Thomas".into(), foolishness: 108}.to_string());
 ```
 
+The error messages can reference your parameters using braces (`{parameter_name}`).
+If you need some custom logic to display your parameters, you can use 
+[advanced custom error messages](#advanced-custom-error-messages).
+
 ## Wrapping other error types
 
 If the cause of your error is another lower-level error, you can indicate that
@@ -120,4 +124,26 @@ at the beginning of the declaration.
 
 ```rust
 custom_error!{pub MyError A="error a" B="error b"}
+```
+
+## Advanced custom error messages
+
+If you want to use error messages that you cannot express with
+simple formatting strings, you can generate your error messages with
+custom code.
+
+In the following example, we use this feature to display a
+different error message based on the cause of the underlying IO error.
+
+```rust
+custom_error!{ pub MyError
+    Io{source: Error} = @{
+        match source.kind() {
+            NotFound => "The file does not exist",
+            TimedOut => "The operation timed out",
+            _ => "unknown error",
+        }
+    },
+    Unknown = "unknown error"
+}
 ```
