@@ -86,15 +86,21 @@ macro_rules! custom_error {
     (pub $($tt:tt)*) => { $crate::custom_error!{ (pub) $($tt)* } };
 
     (
-        $( ($prefix:tt) )*
-        $errtype:ident $( < $($type_param:ident),* > )*
+        $( ($prefix:tt) )* // `pub` marker
+        $errtype:ident // Name of the error type to generate
+        $( < $(
+            $type_param:ident // Optional type parameters for generic error types
+            ),*
+        > )*
         $(
-            $field:ident
-            $( {
-                    $( $attr_name:ident : $attr_type:ty ),*
-            } )*
+            $field:ident // Name of an error variant
+            $( { $(
+                $attr_name:ident // Name of an attribute of the error variant
+                :
+                $attr_type:ty // type of the attribute
+            ),* } )*
             =
-            $msg:expr
+            $msg:expr // The human-readable error message
          ),*
          $(,)* // Trailing comma
     ) => {
