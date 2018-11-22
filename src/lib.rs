@@ -126,7 +126,7 @@ macro_rules! custom_error {
         $( ($prefix:tt) )* // `pub` marker
         $errtype:ident // Name of the error type to generate
         $( < $(
-            $type_param:ident // Optional type parameters for generic error types
+            $type_param:tt // Optional type parameters for generic error types
             ),*
         > )*
         $(
@@ -134,7 +134,8 @@ macro_rules! custom_error {
             $( { $(
                 $attr_name:ident // Name of an attribute of the error variant
                 :
-                $attr_type:ty // type of the attribute
+                $($attr_type:ident)::* // type of the attribute
+                $(< $($attr_type_param:tt),* >)* // Generic (lifetime & type) parameters for the attribute's type
             ),* } )*
             =
             $( @{ $($msg_fun:tt)* } )*
@@ -146,11 +147,14 @@ macro_rules! custom_error {
         $($prefix)* enum $errtype $( < $($type_param),* > )* {
             $(
                 $field
-                $( { $( $attr_name : $attr_type ),* } )*
+                $( { $( $attr_name : $($attr_type)::* $(< $($attr_type_param),* >)* ),* } )*
             ),*
         }
 
-        impl $( < $($type_param : std::fmt::Debug + std::fmt::Display),* > )* std::error::Error
+        $crate::add_type_bounds! {
+        ( $($($type_param),*)* )
+        (std::fmt::Debug + std::fmt::Display)
+        { impl <} {> std::error::Error
             for $errtype $( < $($type_param),* > )*
         {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
@@ -158,18 +162,32 @@ macro_rules! custom_error {
                 #[allow(unused_variables, unreachable_code)]
                 match self {$(
                     $errtype::$field $( { $( $attr_name ),* } )* => {
-                        $( $( $crate::return_if_source!($attr_name, $attr_name) );* )*;
+                        $( $(
+                            $crate::return_if_source!($attr_name, $attr_name $(<$($attr_type_param),*>)* )
+                        );* )*;
                         None
                     }
                 ),*}
             }
         }
+        }}
 
-        $(
-            $( $crate::impl_error_conversion!{$($attr_name, $attr_name, $attr_type,)* $errtype, $field} )*
-        )*
+        $crate::impl_error_conversion!{
+            ( $errtype $(< $($type_param),* >)* )
+            $([
+                $field,
+                $($(
+                    $attr_name,
+                    $attr_name,
+                    $($attr_type)::* $(< $($attr_type_param),* >)*
+                ),*),*
+            ])*
+        }
 
-        impl $( < $($type_param : std::string::ToString),* > )* std::fmt::Display
+        $crate::add_type_bounds! {
+        ( $($($type_param),*)* )
+        (std::string::ToString)
+        { impl <} {> std::fmt::Display
             for $errtype $( < $($type_param),* > )*
         {
             fn fmt(&self, formatter: &mut std::fmt::Formatter)
@@ -184,28 +202,52 @@ macro_rules! custom_error {
                 ),*}
             }
         }
+        }}
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! return_if_source {
+    // Return the source if the attribute is called 'source'
     (source, $attr_name:ident) => { {return Some($attr_name)} };
-    ($($_:tt)*) => {};
+    // If the attribute has a different name or has type parameters, return nothing
+    ($_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => { };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! impl_error_conversion {
+    ( ( $($prefix:tt)* ) [ $($field_data:tt)* ] $($rest:tt)* ) => {
+        $crate::impl_error_conversion!{$($prefix)*, $($field_data)*}
+        $crate::impl_error_conversion!{ ($($prefix)*) $($rest)*}
+    };
+    ( ( $($prefix:tt)* ) ) => {};
     // implement From<Source> only when there is a single attribute and it is named 'source'
-    (source, $source:ident, $error_type:ty, $errtype:ident, $field:ident) => {
-        impl From<$error_type> for $errtype {
-            fn from(source: $error_type) -> Self {
+    (
+        $errtype:ident $( < $($type_param:tt),* > )*,
+        $field:ident,
+        source,
+        $source:ident,
+        $($source_type:ident)::* $( < $($source_type_param:tt),* > )*
+    ) => {
+        impl $( < $($source_type_param),* > )*
+            From<$($source_type)::* $( < $($source_type_param),* > )*>
+        for $errtype $( < $($type_param),* > )* {
+            fn from(source: $($source_type)::* $( < $($source_type_param),* > )*) -> Self {
                 $errtype::$field { source }
             }
         }
     };
-    ($($_:tt)*) => {};
+    (
+        $_errtype:ident $( < $($_errtype_type_param:tt),* > )*,
+        $_field:ident,
+        $(
+            $_:ident,
+            $_repeated:ident,
+            $($_type:ident)::* $( < $($_type_param:tt),* > )*
+        ),*
+    ) => {}; // If the list of fields is not a single field named 'source', do nothing
 }
 
 #[doc(hidden)]
@@ -219,6 +261,61 @@ macro_rules! display_message {
         )?;
     };
     ($formatter:expr, $($attr:ident),* | ) => {};
+}
+
+/* This macro, given a list of generic parameters and type
+bounds, adds the type bounds to all generic type parameters
+(and leaves the generic lifetime parameters unchanged) */
+#[doc(hidden)]
+#[macro_export]
+macro_rules! add_type_bounds {
+    (
+        ( $typ:ident $(, $rest:tt)* ) // type parameter
+        ( $($bounds:tt)* )
+        { $($prefix:tt)* }
+        { $($suffix:tt)* }
+    ) => {
+        add_type_bounds!{
+            ( $(, $rest)* )
+            ( $($bounds)* )
+            { $($prefix)* $typ : $($bounds)*}
+            { $($suffix)* }
+        }
+    };
+    (
+        ( $lifetime:tt $(, $rest:tt)* ) // lifetime parameter
+        ( $($bounds:tt)* )
+        { $($prefix:tt)* }
+        { $($suffix:tt)* }
+    ) => {
+        add_type_bounds!{
+            ( $(, $rest)* )
+            ( $($bounds)* )
+            { $($prefix)* $lifetime }
+            { $($suffix)* }
+        }
+    };
+    (
+        ( , $($rest:tt)* ) // add the comma to the prefix
+        ( $($bounds:tt)* )
+        { $($prefix:tt)* }
+        { $($suffix:tt)* }
+    ) => {
+        add_type_bounds!{
+            ( $($rest)* )
+            ( $($bounds)* )
+            { $($prefix)* , }
+            { $($suffix)* }
+        }
+    };
+    (
+        (  ) // no more generic params to consume
+        ( $($bounds:tt)* )
+        { $($prefix:tt)* }
+        { $($suffix:tt)* }
+    ) => {
+        $($prefix)* $($suffix)*
+    }
 }
 
 #[cfg(test)]
@@ -346,4 +443,38 @@ mod tests {
             MyError::Io { source: io::ErrorKind::Interrupted.into() }.to_string()
         )
     }
+
+    #[test]
+    fn lifetime_source_param() {
+
+        #[derive(Debug)]
+        struct SourceError<'my_lifetime> { x : &'my_lifetime str }
+        impl<'a> std::fmt::Display for SourceError<'a> {
+            fn fmt(&self, _: &mut std::fmt::Formatter) -> std::fmt::Result {
+                Ok(())
+            }
+        }
+        impl<'a> std::error::Error for SourceError<'a> {}
+
+        custom_error! { MyError<'source_lifetime>
+            Sourced { source : SourceError<'source_lifetime> } = @{ source.x }
+        }
+        let err = MyError::Sourced { source : SourceError { x: "I am the source"} };
+        assert_eq!("I am the source", err.to_string());
+
+    }
+
+/* TODO: add support for type bounds
+    #[test]
+    fn lifetime_param_and_type_param() {
+        #[derive(Debug)]
+        struct MyType<'a,T> {data: &'a str, y: T}
+        custom_error! { MyError<'a,T>
+            X { d: MyType<'a,T> } = @{ format!("{} : {:?}", d.data, d.y) }
+        }
+        let err = MyError::X { d : MyType { data: "hello", y:42i8 } };
+        assert_eq!("hello : 42", err.to_string());
+
+    }
+*/
 }
