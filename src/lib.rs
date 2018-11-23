@@ -468,17 +468,17 @@ mod tests {
 
     }
 
-/* TODO: add support for type bounds
     #[test]
     fn lifetime_param_and_type_param() {
         #[derive(Debug)]
-        struct MyType<'a,T> {data: &'a str, y: T}
+        struct MyType<'a,T> {data: &'a str, _y: T}
         custom_error! { MyError<'a,T>
-            X { d: MyType<'a,T> } = @{ format!("{} : {:?}", d.data, d.y) }
+            X { d: MyType<'a,T> } = @{ format!("error x: {}", d.data) },
+            Y { d: T } = "error y"
         }
-        let err = MyError::X { d : MyType { data: "hello", y:42i8 } };
-        assert_eq!("hello : 42", err.to_string());
-
+        let err = MyError::X { d : MyType { data: "hello", _y:42i8 } };
+        assert_eq!("error x: hello", err.to_string());
+        let err_y = MyError::Y { d : String::from("my string") };
+        assert_eq!("error y", err_y.to_string());
     }
-*/
 }
