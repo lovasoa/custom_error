@@ -231,7 +231,7 @@ macro_rules! impl_error_conversion {
         $source:ident,
         $($source_type:ident)::* $( < $($source_type_param:tt),* > )*
     ) => {
-        impl $( < $($source_type_param),* > )*
+        impl $( < $($type_param),* > )*
             From<$($source_type)::* $( < $($source_type_param),* > )*>
         for $errtype $( < $($type_param),* > )* {
             fn from(source: $($source_type)::* $( < $($source_type_param),* > )*) -> Self {
