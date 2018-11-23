@@ -458,10 +458,13 @@ mod tests {
 
         custom_error! { MyError<'source_lifetime>
             Sourced { source : SourceError<'source_lifetime> } = @{ source.x },
-            IoError { source: std::io::Error } = "I/O error"
+            Other { source: std::fmt::Error } = "other error"
         }
-        let err = MyError::Sourced { source : SourceError { x: "I am the source"} };
-        assert_eq!("I am the source", err.to_string());
+
+        let sourced = MyError::Sourced { source : SourceError { x: "I am the source"} };
+        assert_eq!("I am the source", sourced.to_string());
+        let other_err : MyError = std::fmt::Error.into();
+        assert_eq!("other error", other_err.to_string());
 
     }
 
