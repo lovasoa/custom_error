@@ -456,18 +456,9 @@ mod tests {
         }
         impl<'a> std::error::Error for SourceError<'a> {}
 
-        #[derive(Debug)]
-        struct OtherError();
-        impl std::error::Error for OtherError {}
-        impl std::fmt::Display for OtherError {
-            fn fmt(&self, _: &mut std::fmt::Formatter) -> std::fmt::Result {
-                Ok(())
-            }
-        }
-
         custom_error! { MyError<'source_lifetime>
             Sourced { source : SourceError<'source_lifetime> } = @{ source.x },
-            Other { source: OtherError } = "other error"
+            IoError { source: std::io::Error } = "I/O error"
         }
         let err = MyError::Sourced { source : SourceError { x: "I am the source"} };
         assert_eq!("I am the source", err.to_string());
