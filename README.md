@@ -8,9 +8,13 @@ and a list of possible errors and generates a rust enumeration for all the cases
 together with the required `impl` blocks implementing `std::error::Error`
 and `std::fmt::Display`. 
 
-You can now write
+You can now write:
 
 ```rust
+#[macro_use] extern crate custom_error;
+use custom_error::custom_error;
+
+// Note the use of braces rather than parentheses.
 custom_error!{MyError
     Unknown{code:u8} = "unknown error with code {code}.",
     Err41            = "Sit by a lake"
