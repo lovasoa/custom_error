@@ -11,7 +11,7 @@ and `std::fmt::Display`.
 You can now write:
 
 ```rust
-#[macro_use] extern crate custom_error;
+extern crate custom_error;
 use custom_error::custom_error;
 
 // Note the use of braces rather than parentheses.
