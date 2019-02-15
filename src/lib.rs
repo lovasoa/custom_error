@@ -196,7 +196,7 @@ macro_rules! custom_error {
                 match self {$(
                     $errtype::$field $( { $( $attr_name ),* } )* => {
                         $(write!(formatter, "{}", ($($msg_fun)*) )?;)*
-                        $crate::display_message_for_enum!(formatter, $($($attr_name),*),* | $($msg)*);
+                        $crate::display_message!(formatter, $($($attr_name),*),* | $($msg)*);
                         Ok(())
                     }
                 ),*}
@@ -249,8 +249,13 @@ macro_rules! custom_error {
             fn fmt(&self, formatter: &mut std::fmt::Formatter)
                 -> std::fmt::Result
             {
+                // make fields accessible with variables, so that we can
+                // use them in custom error msg blocks without self
+                $(
+                    let $field_name = &self.$field_name;
+                );*
                 $(write!(formatter, "{}", ($($msg_fun)*) )?;)*
-                $crate::display_message_for_struct!(self, formatter, $($field_name),* | $($msg)*);
+                $crate::display_message!(formatter, $($field_name),* | $($msg)*);
                 Ok(())
             }
         }
@@ -304,25 +309,12 @@ macro_rules! impl_error_conversion {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! display_message_for_enum {
+macro_rules! display_message {
     ($formatter:expr, $($attr:ident),* | $msg:expr) => {
         write!(
             $formatter,
             concat!($msg $(, "{", stringify!($attr), ":.0}" )*)
             $( , $attr = $attr.to_string() )*
-        )?;
-    };
-    ($formatter:expr, $($attr:ident),* | ) => {};
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! display_message_for_struct {
-    ($self:ident, $formatter:expr, $($attr:ident),* | $msg:expr) => {
-        write!(
-            $formatter,
-            concat!($msg $(, "{", stringify!($attr), ":.0}" )*)
-            $( , $attr = $self.$attr.to_string() )*
         )?;
     };
     ($formatter:expr, $($attr:ident),* | ) => {};
@@ -381,6 +373,18 @@ macro_rules! add_type_bounds {
     ) => {
         $($prefix)* $($suffix)*
     }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! display_message_fun_for_struct {
+    ($self:ident, $formatter:expr, $($field_name:ident),* | $msg_fun:expr) => {
+        $(
+            let $field_name = $self.$field_name;
+        );*
+        write!($formatter, "{}", $msg_fun)?;
+    };
+    ($self:ident, $formatter:expr, $($field_name:ident),* | ) => {};
 }
 
 #[cfg(test)]
@@ -534,6 +538,21 @@ mod tests {
         assert_eq!("zero", MyError::Complex { a: 0, b: 0 }.to_string());
         assert_eq!("3", MyError::Complex { a: 2, b: 1 }.to_string());
         assert_eq!("simple", MyError::Simple.to_string());
+    }
+
+    #[test]
+    fn struct_with_custom_formatting() {
+        custom_error! {MyError{a:u8, b:u8} = @{
+                if a+b == 0 {
+                    "zero".to_string()
+                } else {
+                    (a+b).to_string()
+                }
+            }
+        }
+
+        assert_eq!("zero", MyError { a: 0, b: 0 }.to_string());
+        assert_eq!("3", MyError { a: 2, b: 1 }.to_string());
     }
 
     #[test]
