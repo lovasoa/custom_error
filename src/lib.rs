@@ -389,9 +389,12 @@ mod tests {
     fn single_error_case() {
         custom_error!(MyError Bad="bad");
         assert_eq!("bad", MyError::Bad.to_string());
+    }
 
-        custom_error!(MyErrorStruct{} ="bad");
-        assert_eq!("bad", MyErrorStruct{}.to_string());
+    #[test]
+    fn single_error_struct_case() {
+        custom_error!(MyError{} ="bad");
+        assert_eq!("bad", MyError{}.to_string());
     }
 
     #[test]
@@ -412,9 +415,12 @@ mod tests {
             "9 things are broken",
             MyError::Catastrophic { broken_things: 9 }.to_string()
         );
+    }
 
-        custom_error!(MyErrorStruct{broken_things:u8} = "{broken_things} things are broken");
-        assert_eq!("9 things are broken", MyErrorStruct{ broken_things: 9 }.to_string());
+    #[test]
+    fn struct_with_error_data() {
+        custom_error!(MyError{broken_things:u8} = "{broken_things} things are broken");
+        assert_eq!("9 things are broken", MyError{ broken_things: 9 }.to_string());
     }
 
     #[test]
@@ -422,10 +428,13 @@ mod tests {
         custom_error!(E X{a:u8, b:u8, c:u8} = "{c} {b} {a}");
 
         assert_eq!("3 2 1", E::X { a: 1, b: 2, c: 3 }.to_string());
+    }
 
-        custom_error!(EStruct{a:u8, b:u8, c:u8} = "{c} {b} {a}");
+    #[test]
+    fn struct_with_multiple_error_data() {
+        custom_error!(E{a:u8, b:u8, c:u8} = "{c} {b} {a}");
 
-        assert_eq!("3 2 1", EStruct{ a: 1, b: 2, c: 3 }.to_string());
+        assert_eq!("3 2 1", E{ a: 1, b: 2, c: 3 }.to_string());
     }
 
     #[test]
@@ -462,10 +471,16 @@ mod tests {
     fn pub_error() {
         mod my_mod {
             custom_error! {pub MyError Case1="case1"}
-            custom_error! {pub MyErrorStruct{} = "case2"}
         }
         assert_eq!("case1", my_mod::MyError::Case1.to_string());
-        assert_eq!("case2", my_mod::MyErrorStruct{}.to_string());
+    }
+
+    #[test]
+    fn pub_error_struct() {
+        mod my_mod {
+            custom_error! {pub MyError{} = "case1"}
+        }
+        assert_eq!("case1", my_mod::MyError{}.to_string());
     }
 
     #[test]
@@ -473,18 +488,24 @@ mod tests {
         custom_error! {MyError<X,Y> E1{x:X,y:Y}="x={x} y={y}", E2="e2"}
         assert_eq!("x=42 y=42", MyError::E1 { x: 42u8, y: 42u8 }.to_string());
         assert_eq!("e2", MyError::E2::<u8, u8>.to_string());
+    }
 
-        custom_error! {MyErrorStruct<X,Y>{x:X,y:Y}="x={x} y={y}"}
-        assert_eq!("x=42 y=42", MyErrorStruct{ x: 42u8, y: 42u8 }.to_string());
+    #[test]
+    fn generic_error_struct() {
+        custom_error! {MyError<X,Y>{x:X,y:Y}="x={x} y={y}"}
+        assert_eq!("x=42 y=42", MyError{ x: 42u8, y: 42u8 }.to_string());
     }
 
     #[test]
     fn single_error_case_with_braces() {
         custom_error! {MyError Bad="bad"}
         assert_eq!("bad", MyError::Bad.to_string());
+    }
 
-        custom_error! {MyErrorStruct{} ="bad"}
-        assert_eq!("bad", MyErrorStruct{}.to_string())
+    #[test]
+    fn single_error_struct_case_with_braces() {
+        custom_error! {MyError{} ="bad"}
+        assert_eq!("bad", MyError{}.to_string())
     }
 
     #[test]
