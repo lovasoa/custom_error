@@ -8,6 +8,9 @@ and a list of possible errors and generates a rust enumeration for all the cases
 together with the required `impl` blocks implementing `std::error::Error`
 and `std::fmt::Display`. 
 
+If you only have a single case for an error you can also generate a struct
+instead of an enum.
+
 You can now write:
 
 ```rust
@@ -39,6 +42,33 @@ impl std::fmt::Display for MyError {
             MyError::Unknown { code } => write!(f, "unknown error with code {}." , code),
             MyError::Err41 => write!(f, "Sit by a lake")
         }
+    }
+}
+```
+
+If you only have a single error case you can also generate a struct:
+```rust
+extern crate custom_error;
+use custom_error::custom_error;
+
+// Note the use of braces rather than parentheses.
+custom_error!{MyError{code:u8} = "error with code {code}."}
+```
+
+instead of
+
+```rust
+#[derive(Debug)]
+struct MyError {
+    code: u8,
+}
+
+impl std::error::Error for MyError {}
+
+impl std::fmt::Display for MyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter)
+    -> std::fmt::Result {
+        write!(f, "error with code {}." , self.code)
     }
 }
 ```
@@ -82,7 +112,7 @@ assert_eq!(
 ```
 
 The error messages can reference your parameters using braces (`{parameter_name}`).
-If you need some custom logic to display your parameters, you can use 
+If you need some custom logic to display your parameters, you can use
 [advanced custom error messages](#advanced-custom-error-messages).
 
 ## Wrapping other error types
