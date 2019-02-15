@@ -381,18 +381,6 @@ macro_rules! add_type_bounds {
     }
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! display_message_fun_for_struct {
-    ($self:ident, $formatter:expr, $($field_name:ident),* | $msg_fun:expr) => {
-        $(
-            let $field_name = $self.$field_name;
-        );*
-        write!($formatter, "{}", $msg_fun)?;
-    };
-    ($self:ident, $formatter:expr, $($field_name:ident),* | ) => {};
-}
-
 #[cfg(test)]
 mod tests {
     #[test]
