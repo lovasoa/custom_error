@@ -244,6 +244,11 @@ macro_rules! custom_error {
         }
         }}
 
+        $crate::impl_error_conversion_for_struct!{
+            $errtype $(< $($type_param),* >)*,
+            $( $field_name: $($field_type)::* $(< $($field_type_param),* >)* ),*
+        }
+
         $crate::add_type_bounds! {
         ( $($($type_param),*)* )
         (std::string::ToString)
@@ -310,6 +315,29 @@ macro_rules! impl_error_conversion {
             $_repeated:ident,
             $($_type:ident)::* $( < $($_type_param:tt),* > )*
         ),*
+    ) => {}; // If the list of fields is not a single field named 'source', do nothing
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_error_conversion_for_struct {
+    ( ( $($prefix:tt)* ) ) => {};
+    // implement From<Source> only when there is a single field and it is named 'source'
+    (
+        $errtype:ident $( < $($type_param:tt),* > )*,
+        source: $($source_type:ident)::* $( < $($source_type_param:tt),* > )*
+    ) => {
+        impl $( < $($type_param),* > )*
+            From<$($source_type)::* $( < $($source_type_param),* > )*>
+        for $errtype $( < $($type_param),* > )* {
+            fn from(source: $($source_type)::* $( < $($source_type_param),* > )*) -> Self {
+                $errtype { source }
+            }
+        }
+    };
+    (
+        $_errtype:ident $( < $($_errtype_type_param:tt),* > )*,
+        $( $_field:ident: $($_type:ident)::* $( < $($_type_param:tt),* > )* ),*
     ) => {}; // If the list of fields is not a single field named 'source', do nothing
 }
 
@@ -466,12 +494,31 @@ mod tests {
     }
 
     #[test]
+    fn struct_from_source() {
+        use std::io;
+        custom_error!(E{source: io::Error}="bella vita");
+        let source = io::Error::from(io::ErrorKind::InvalidData);
+        assert_eq!("bella vita", E::from(source).to_string());
+    }
+
+    #[test]
     #[allow(dead_code)]
     fn with_source_and_others() {
         use std::{io, error::Error};
         custom_error!(MyError Zero="", One{x:u8}="", Two{x:u8, source:io::Error}="{x}");
         fn source() -> io::Error { io::ErrorKind::AlreadyExists.into() };
         let my_err = MyError::Two { x: 42, source: source() };
+        assert_eq!("42", my_err.to_string());
+        assert_eq!(source().to_string(), my_err.source().unwrap().to_string());
+    }
+
+    #[test]
+    #[allow(dead_code)]
+    fn struct_with_source_and_others() {
+        use std::{io, error::Error};
+        custom_error!(MyError{x:u8, source:io::Error}="{x}");
+        fn source() -> io::Error { io::ErrorKind::AlreadyExists.into() };
+        let my_err = MyError{ x: 42, source: source() };
         assert_eq!("42", my_err.to_string());
         assert_eq!(source().to_string(), my_err.source().unwrap().to_string());
     }
@@ -611,6 +658,27 @@ mod tests {
     }
 
     #[test]
+    fn struct_lifetime_source_param() {
+
+        #[derive(Debug)]
+        struct SourceError<'my_lifetime> { x : &'my_lifetime str }
+        impl<'a> std::fmt::Display for SourceError<'a> {
+            fn fmt(&self, _: &mut std::fmt::Formatter) -> std::fmt::Result {
+                Ok(())
+            }
+        }
+        impl<'a> std::error::Error for SourceError<'a> {}
+
+        custom_error! { MyError<'source_lifetime>{
+            source : SourceError<'source_lifetime>
+        } = @{ source.x },}
+
+        let sourced = MyError{ source : SourceError { x: "I am the source"} };
+        assert_eq!("I am the source", sourced.to_string());
+
+    }
+
+    #[test]
     fn lifetime_param_and_type_param() {
         #[derive(Debug)]
         struct MyType<'a,T> {data: &'a str, _y: T}
@@ -622,5 +690,16 @@ mod tests {
         assert_eq!("error x: hello", err.to_string());
         let err_y = MyError::Y { d : String::from("my string") };
         assert_eq!("error y", err_y.to_string());
+    }
+
+    #[test]
+    fn struct_lifetime_param_and_type_param() {
+        #[derive(Debug)]
+        struct MyType<'a,T> {data: &'a str, _y: T}
+        custom_error! { MyError<'a,T> {
+            d: MyType<'a,T>
+        } = @{ format!("error x: {}", d.data) } }
+        let err = MyError { d : MyType { data: "hello", _y:42i8 } };
+        assert_eq!("error x: hello", err.to_string());
     }
 }
