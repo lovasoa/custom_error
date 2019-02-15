@@ -51,26 +51,7 @@ If you only have a single error case you can also generate a struct:
 extern crate custom_error;
 use custom_error::custom_error;
 
-// Note the use of braces rather than parentheses.
 custom_error!{MyError{code:u8} = "error with code {code}."}
-```
-
-instead of
-
-```rust
-#[derive(Debug)]
-struct MyError {
-    code: u8,
-}
-
-impl std::error::Error for MyError {}
-
-impl std::fmt::Display for MyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter)
-    -> std::fmt::Result {
-        write!(f, "error with code {}." , self.code)
-    }
-}
 ```
 
 ## Simple error
