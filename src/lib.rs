@@ -233,8 +233,12 @@ macro_rules! custom_error {
         { impl <} {> std::error::Error
             for $errtype $( < $($type_param),* > )*
         {
+            #[allow(unused_variables, unreachable_code)]
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
             {
+                $(
+                    $crate::return_if_source!(self, $field_name, $field_name $(<$($field_type_param),*>)* );
+                );*
                 None
             }
         }
@@ -268,8 +272,10 @@ macro_rules! custom_error {
 macro_rules! return_if_source {
     // Return the source if the attribute is called 'source'
     (source, $attr_name:ident) => { {return Some($attr_name)} };
+    ($self:ident, source, $attr_name:ident) => { {return Some(&$self.$attr_name)} };
     // If the attribute has a different name or has type parameters, return nothing
     ($_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => { };
+    ($self:ident, $_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => { };
 }
 
 #[doc(hidden)]
@@ -453,6 +459,17 @@ mod tests {
     }
 
     #[test]
+    fn struct_source() {
+        use std::{io, error::Error};
+        custom_error!(E{source: io::Error}="");
+        let source: io::Error = io::ErrorKind::InvalidData.into();
+        assert_eq!(
+            source.to_string(),
+            E{ source }.source().unwrap().to_string()
+        );
+    }
+
+    #[test]
     fn from_source() {
         use std::io;
         custom_error!(E A{source: io::Error}="bella vita");
@@ -566,6 +583,18 @@ mod tests {
         assert_eq!(
             "IO Error occurred: Interrupted",
             MyError::Io { source: io::ErrorKind::Interrupted.into() }.to_string()
+        )
+    }
+
+    #[test]
+    fn struct_custom_format_source() {
+        use std::io;
+
+        custom_error! {MyError{source:io::Error} = @{format!("IO Error occurred: {:?}", source.kind())} }
+
+        assert_eq!(
+            "IO Error occurred: Interrupted",
+            MyError { source: io::ErrorKind::Interrupted.into() }.to_string()
         )
     }
 
