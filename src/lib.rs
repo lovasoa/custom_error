@@ -196,10 +196,62 @@ macro_rules! custom_error {
                 match self {$(
                     $errtype::$field $( { $( $attr_name ),* } )* => {
                         $(write!(formatter, "{}", ($($msg_fun)*) )?;)*
-                        $crate::display_message!(formatter, $($($attr_name),*),* | $($msg)*);
+                        $crate::display_message_for_enum!(formatter, $($($attr_name),*),* | $($msg)*);
                         Ok(())
                     }
                 ),*}
+            }
+        }
+        }}
+    };
+    (
+        $( ($prefix:tt) )* // `pub` marker
+        $errtype:ident // Name of the error type to generate
+        $( < $(
+            $type_param:tt // Optional type parameters for generic error types
+            ),*
+        > )*
+        { $(
+            $field_name:ident // Name of an attribute of the error variant
+            :
+            $($field_type:ident)::* // type of the attribute
+            $(< $($field_type_param:tt),* >)* // Generic (lifetime & type) parameters for the attribute's type
+        ),* }
+        =
+        $( @{ $($msg_fun:tt)* } )*
+        $($msg:expr)* // The human-readable error message
+        $(,)* // Trailing comma
+    ) => {
+        #[derive(Debug)]
+        $($prefix)* struct $errtype $( < $($type_param),* > )* {
+            $( $field_name : $($field_type)::* $(< $($field_type_param),* >)* ),*
+        }
+
+        $crate::add_type_bounds! {
+        ( $($($type_param),*)* )
+        (std::fmt::Debug + std::fmt::Display)
+        { impl <} {> std::error::Error
+            for $errtype $( < $($type_param),* > )*
+        {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
+            {
+                None
+            }
+        }
+        }}
+
+        $crate::add_type_bounds! {
+        ( $($($type_param),*)* )
+        (std::string::ToString)
+        { impl <} {> std::fmt::Display
+            for $errtype $( < $($type_param),* > )*
+        {
+            fn fmt(&self, formatter: &mut std::fmt::Formatter)
+                -> std::fmt::Result
+            {
+                $(write!(formatter, "{}", ($($msg_fun)*) )?;)*
+                $crate::display_message_for_struct!(self, formatter, $($field_name),* | $($msg)*);
+                Ok(())
             }
         }
         }}
@@ -252,12 +304,25 @@ macro_rules! impl_error_conversion {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! display_message {
+macro_rules! display_message_for_enum {
     ($formatter:expr, $($attr:ident),* | $msg:expr) => {
         write!(
             $formatter,
             concat!($msg $(, "{", stringify!($attr), ":.0}" )*)
             $( , $attr = $attr.to_string() )*
+        )?;
+    };
+    ($formatter:expr, $($attr:ident),* | ) => {};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! display_message_for_struct {
+    ($self:ident, $formatter:expr, $($attr:ident),* | $msg:expr) => {
+        write!(
+            $formatter,
+            concat!($msg $(, "{", stringify!($attr), ":.0}" )*)
+            $( , $attr = $self.$attr.to_string() )*
         )?;
     };
     ($formatter:expr, $($attr:ident),* | ) => {};
@@ -323,7 +388,10 @@ mod tests {
     #[test]
     fn single_error_case() {
         custom_error!(MyError Bad="bad");
-        assert_eq!("bad", MyError::Bad.to_string())
+        assert_eq!("bad", MyError::Bad.to_string());
+
+        custom_error!(MyErrorStruct{} ="bad");
+        assert_eq!("bad", MyErrorStruct{}.to_string());
     }
 
     #[test]
@@ -344,6 +412,9 @@ mod tests {
             "9 things are broken",
             MyError::Catastrophic { broken_things: 9 }.to_string()
         );
+
+        custom_error!(MyErrorStruct{broken_things:u8} = "{broken_things} things are broken");
+        assert_eq!("9 things are broken", MyErrorStruct{ broken_things: 9 }.to_string());
     }
 
     #[test]
@@ -351,6 +422,10 @@ mod tests {
         custom_error!(E X{a:u8, b:u8, c:u8} = "{c} {b} {a}");
 
         assert_eq!("3 2 1", E::X { a: 1, b: 2, c: 3 }.to_string());
+
+        custom_error!(EStruct{a:u8, b:u8, c:u8} = "{c} {b} {a}");
+
+        assert_eq!("3 2 1", EStruct{ a: 1, b: 2, c: 3 }.to_string());
     }
 
     #[test]
@@ -385,8 +460,12 @@ mod tests {
 
     #[test]
     fn pub_error() {
-        mod my_mod { custom_error! {pub MyError Case1="case1"} }
-        assert_eq!("case1", my_mod::MyError::Case1.to_string())
+        mod my_mod {
+            custom_error! {pub MyError Case1="case1"}
+            custom_error! {pub MyErrorStruct{} = "case2"}
+        }
+        assert_eq!("case1", my_mod::MyError::Case1.to_string());
+        assert_eq!("case2", my_mod::MyErrorStruct{}.to_string());
     }
 
     #[test]
@@ -394,12 +473,18 @@ mod tests {
         custom_error! {MyError<X,Y> E1{x:X,y:Y}="x={x} y={y}", E2="e2"}
         assert_eq!("x=42 y=42", MyError::E1 { x: 42u8, y: 42u8 }.to_string());
         assert_eq!("e2", MyError::E2::<u8, u8>.to_string());
+
+        custom_error! {MyErrorStruct<X,Y>{x:X,y:Y}="x={x} y={y}"}
+        assert_eq!("x=42 y=42", MyErrorStruct{ x: 42u8, y: 42u8 }.to_string());
     }
 
     #[test]
     fn single_error_case_with_braces() {
         custom_error! {MyError Bad="bad"}
-        assert_eq!("bad", MyError::Bad.to_string())
+        assert_eq!("bad", MyError::Bad.to_string());
+
+        custom_error! {MyErrorStruct{} ="bad"}
+        assert_eq!("bad", MyErrorStruct{}.to_string())
     }
 
     #[test]
