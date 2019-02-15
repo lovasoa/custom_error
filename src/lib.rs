@@ -4,6 +4,7 @@
 ///
 /// ### Simple error
 ///
+/// For an error with multiple cases you can generate an enum:
 /// ```
 /// use custom_error::custom_error;
 ///
@@ -13,6 +14,14 @@
 /// }
 /// assert_eq!("Something bad happened",          MyError::Bad.to_string());
 /// assert_eq!("This is a very serious error!!!", MyError::Terrible.to_string());
+/// ```
+///
+/// For an error with a single case you can generate a struct:
+/// ```
+/// use custom_error::custom_error;
+///
+/// custom_error!{ pub MyError{} = "Something bad happened" }
+/// assert_eq!("Something bad happened", MyError{}.to_string());
 /// ```
 ///
 /// ### Custom error with parameters
