@@ -10,6 +10,7 @@ readme = "README.md"
 categories = ["rust-patterns", "development-tools", "encoding"]
 keywords = ["error", "failure", "macro"]
 documentation = "https://docs.rs/custom_error"
+edition='2018'
 
 [dependencies]
 
