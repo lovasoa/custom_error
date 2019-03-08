@@ -126,12 +126,28 @@
 ///
 /// assert_eq!("The operation timed out", MyError::Io{source: TimedOut.into()}.to_string());
 /// ```
+/// 
+/// ### Derive traits for your errors
+/// You can add custom [attributes](https://doc.rust-lang.org/rust-by-example/attribute.html)
+/// at the beginning of the macro invocation. This allows you to derive traits for your error:
+/// 
+/// ```
+/// use custom_error::custom_error;
+/// 
+/// custom_error! {
+///     #[derive(PartialEq,PartialOrd)]
+///     ErrLevel Small = "Don't worry", Serious = "Aaargh!!!"
+/// }
+/// assert_ne!(ErrLevel::Small, ErrLevel::Serious);
+/// assert!(ErrLevel::Small < ErrLevel::Serious);
+/// ```
 
 #[macro_export]
 macro_rules! custom_error {
     (pub $($tt:tt)*) => { $crate::custom_error!{ (pub) $($tt)* } };
 
     (
+        $( #[$meta_attribute:meta] )* // Attributes, like #[derive(SomeTrait)]
         $( ($prefix:tt) )* // `pub` marker
         $errtype:ident // Name of the error type to generate
         $( < $(
@@ -152,6 +168,7 @@ macro_rules! custom_error {
          ),*
          $(,)* // Trailing comma
     ) => {
+        $( #[$meta_attribute] )*
         #[derive(Debug)]
         $($prefix)* enum $errtype $( < $($type_param),* > )* {
             $(
@@ -214,6 +231,7 @@ macro_rules! custom_error {
         }}
     };
     (
+        $( #[$meta_attribute:meta] )* // Attributes, like #[derive(SomeTrait)]
         $( ($prefix:tt) )* // `pub` marker
         $errtype:ident // Name of the error type to generate
         $( < $(
@@ -231,6 +249,7 @@ macro_rules! custom_error {
         $($msg:expr)* // The human-readable error message
         $(,)* // Trailing comma
     ) => {
+        $( #[$meta_attribute] )*
         #[derive(Debug)]
         $($prefix)* struct $errtype $( < $($type_param),* > )* {
             $( $field_name : $($field_type)::* $(< $($field_type_param),* >)* ),*
@@ -453,9 +472,38 @@ mod tests {
     }
 
     #[test]
+    fn enum_with_derive() {
+        custom_error!{
+            #[derive(PartialEq, PartialOrd)]
+            #[derive(Clone)]
+            MyError A = "A", B{b:u8} = "B({b})", C = "C"
+        };
+        // PartialEq
+        assert_eq!(MyError::A, MyError::A);
+        assert_eq!(MyError::B{b:1}, MyError::B{b:1});
+        assert_ne!(MyError::B{b:0}, MyError::B{b:1});
+        assert_ne!(MyError::A, MyError::B{b:1});
+        // PartialOrd
+        assert!(MyError::A < MyError::B{b:1});
+        assert!(MyError::B{b:1} < MyError::B{b:2});
+        assert!(MyError::B{b:2} < MyError::C);
+        // Clone
+        assert_eq!(MyError::A.clone(), MyError::A);
+    }
+
+    #[test]
     fn struct_with_error_data() {
         custom_error!(MyError{broken_things:u8} = "{broken_things} things are broken");
         assert_eq!("9 things are broken", MyError{ broken_things: 9 }.to_string());
+    }
+    
+    #[test]
+    fn struct_with_derive() {
+        custom_error!(#[derive(PartialEq,PartialOrd,Clone,Default)] MyError{x:u8} = ":(");
+        assert_eq!(MyError{ x: 9 }, MyError{ x: 9 }); // Has PartialEq
+        assert_eq!(MyError{ x: 0 }.clone(), MyError{ x: 0 }); // Has Clone
+        assert_eq!(MyError::default(), MyError{ x: 0 }); // Has Default
+        assert!(MyError{ x: 0 } < MyError{ x: 1 }); // Has PartialOrd
     }
 
     #[test]

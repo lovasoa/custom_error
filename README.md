@@ -141,6 +141,16 @@ at the beginning of the declaration.
 custom_error!{pub MyError A="error a" B="error b"}
 ```
 
+## Attributes
+
+You can derive traits for your error types by adding attributes
+to the beginning of your macro invocation.
+
+```rust
+custom_error!{#[derive(PartialEq,PartialOrd)] MyError A="error a" B="error b"}
+assert!(MyError::A < MyError::B);
+```
+
 ## Advanced custom error messages
 
 If you want to use error messages that you cannot express with
