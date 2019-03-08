@@ -138,7 +138,7 @@ You can make an error type public by adding the `pub` keyword
 at the beginning of the declaration.
 
 ```rust
-custom_error!{pub MyError A="error a" B="error b"}
+custom_error!{pub MyError A="error a", B="error b"}
 ```
 
 ## Attributes
@@ -147,7 +147,7 @@ You can derive traits for your error types by adding attributes
 to the beginning of your macro invocation.
 
 ```rust
-custom_error!{#[derive(PartialEq,PartialOrd)] MyError A="error a" B="error b"}
+custom_error!{#[derive(PartialEq,PartialOrd)] MyError A="error a", B="error b"}
 assert!(MyError::A < MyError::B);
 ```
 
