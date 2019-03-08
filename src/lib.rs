@@ -144,33 +144,31 @@
 
 #[macro_export]
 macro_rules! custom_error {
-    (pub $($tt:tt)*) => { $crate::custom_error!{ (pub) $($tt)* } };
-
     (
         $( #[$meta_attribute:meta] )* // Attributes, like #[derive(SomeTrait)]
-        $( ($prefix:tt) )* // `pub` marker
+        $visibility:vis // `pub` marker
         $errtype:ident // Name of the error type to generate
         $( < $(
             $type_param:tt // Optional type parameters for generic error types
             ),*
-        > )*
+        > )?
         $(
             $field:ident // Name of an error variant
             $( { $(
                 $attr_name:ident // Name of an attribute of the error variant
                 :
                 $($attr_type:ident)::* // type of the attribute
-                $(< $($attr_type_param:tt),* >)* // Generic (lifetime & type) parameters for the attribute's type
-            ),* } )*
+                $(< $($attr_type_param:tt),* >)? // Generic (lifetime & type) parameters for the attribute's type
+            ),* } )?
             =
-            $( @{ $($msg_fun:tt)* } )*
-            $($msg:expr)* // The human-readable error message
+            $( @{ $($msg_fun:tt)* } )?
+            $($msg:expr)? // The human-readable error message
          ),*
          $(,)* // Trailing comma
     ) => {
         $( #[$meta_attribute] )*
         #[derive(Debug)]
-        $($prefix)* enum $errtype $( < $($type_param),* > )* {
+        $visibility enum $errtype $( < $($type_param),* > )* {
             $(
                 $field
                 $( { $( $attr_name : $($attr_type)::* $(< $($attr_type_param),* >)* ),* } )*
@@ -232,26 +230,26 @@ macro_rules! custom_error {
     };
     (
         $( #[$meta_attribute:meta] )* // Attributes, like #[derive(SomeTrait)]
-        $( ($prefix:tt) )* // `pub` marker
+        $visibility:vis // `pub` marker
         $errtype:ident // Name of the error type to generate
         $( < $(
             $type_param:tt // Optional type parameters for generic error types
             ),*
-        > )*
+        > )?
         { $(
             $field_name:ident // Name of an attribute of the error variant
             :
             $($field_type:ident)::* // type of the attribute
-            $(< $($field_type_param:tt),* >)* // Generic (lifetime & type) parameters for the attribute's type
+            $(< $($field_type_param:tt),* >)? // Generic (lifetime & type) parameters for the attribute's type
         ),* }
         =
-        $( @{ $($msg_fun:tt)* } )*
-        $($msg:expr)* // The human-readable error message
+        $( @{ $($msg_fun:tt)* } )?
+        $($msg:expr)? // The human-readable error message
         $(,)* // Trailing comma
     ) => {
         $( #[$meta_attribute] )*
         #[derive(Debug)]
-        $($prefix)* struct $errtype $( < $($type_param),* > )* {
+        $visibility struct $errtype $( < $($type_param),* > )* {
             $( $field_name : $($field_type)::* $(< $($field_type_param),* >)* ),*
         }
 
@@ -489,6 +487,16 @@ mod tests {
         assert!(MyError::B{b:2} < MyError::C);
         // Clone
         assert_eq!(MyError::A.clone(), MyError::A);
+    }
+
+    #[test]
+    fn enum_with_pub_derive_and_doc_comment() {
+        custom_error!{
+            ///Doc comment
+            #[derive(PartialEq, PartialOrd)]
+            pub MyError A = "A"
+         };
+         assert_eq!(MyError::A, MyError::A);
     }
 
     #[test]

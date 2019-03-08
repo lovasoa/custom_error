@@ -151,6 +151,16 @@ custom_error!{#[derive(PartialEq,PartialOrd)] MyError A="error a", B="error b"}
 assert!(MyError::A < MyError::B);
 ```
 
+Since [doc comments](https://doc.rust-lang.org/beta/rustdoc/print.html#the-doc-attribute)
+are just syntax sugar for `#[doc = "..."]`, you can use them too:
+ 
+ ```rust
+custom_error!{
+    /// This is the documentation for my error type
+    pub MyError A="error a", B="error b"
+}
+```
+
 ## Advanced custom error messages
 
 If you want to use error messages that you cannot express with
