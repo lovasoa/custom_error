@@ -250,7 +250,7 @@ macro_rules! custom_error {
         $( #[$meta_attribute] )*
         #[derive(Debug)]
         $visibility struct $errtype $( < $($type_param),* > )* {
-            $( $field_name : $($field_type)::* $(< $($field_type_param),* >)* ),*
+            $( pub $field_name : $($field_type)::* $(< $($field_type_param),* >)* ),*
         }
 
         $crate::add_type_bounds! {
