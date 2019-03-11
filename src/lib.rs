@@ -126,14 +126,14 @@
 ///
 /// assert_eq!("The operation timed out", MyError::Io{source: TimedOut.into()}.to_string());
 /// ```
-/// 
+///
 /// ### Derive traits for your errors
 /// You can add custom [attributes](https://doc.rust-lang.org/rust-by-example/attribute.html)
 /// at the beginning of the macro invocation. This allows you to derive traits for your error:
-/// 
+///
 /// ```
 /// use custom_error::custom_error;
-/// 
+///
 /// custom_error! {
 ///     #[derive(PartialEq,PartialOrd)]
 ///     ErrLevel Small = "Don't worry", Serious = "Aaargh!!!"
@@ -302,11 +302,15 @@ macro_rules! custom_error {
 #[macro_export]
 macro_rules! return_if_source {
     // Return the source if the attribute is called 'source'
-    (source, $attr_name:ident) => { {return Some($attr_name)} };
-    ($self:ident, source, $attr_name:ident) => { {return Some(&$self.$attr_name)} };
+    (source, $attr_name:ident) => {{
+        return Some($attr_name);
+    }};
+    ($self:ident, source, $attr_name:ident) => {{
+        return Some(&$self.$attr_name);
+    }};
     // If the attribute has a different name or has type parameters, return nothing
-    ($_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => { };
-    ($self:ident, $_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => { };
+    ($_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => {};
+    ($self:ident, $_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => {};
 }
 
 #[doc(hidden)]
@@ -445,8 +449,8 @@ mod tests {
 
     #[test]
     fn single_error_struct_case() {
-        custom_error!(MyError{} ="bad");
-        assert_eq!("bad", MyError{}.to_string());
+        custom_error!(MyError {} = "bad");
+        assert_eq!("bad", MyError {}.to_string());
     }
 
     #[test]
@@ -471,47 +475,53 @@ mod tests {
 
     #[test]
     fn enum_with_derive() {
-        custom_error!{
+        custom_error! {
             #[derive(PartialEq, PartialOrd)]
             #[derive(Clone)]
             MyError A = "A", B{b:u8} = "B({b})", C = "C"
         };
         // PartialEq
         assert_eq!(MyError::A, MyError::A);
-        assert_eq!(MyError::B{b:1}, MyError::B{b:1});
-        assert_ne!(MyError::B{b:0}, MyError::B{b:1});
-        assert_ne!(MyError::A, MyError::B{b:1});
+        assert_eq!(MyError::B { b: 1 }, MyError::B { b: 1 });
+        assert_ne!(MyError::B { b: 0 }, MyError::B { b: 1 });
+        assert_ne!(MyError::A, MyError::B { b: 1 });
         // PartialOrd
-        assert!(MyError::A < MyError::B{b:1});
-        assert!(MyError::B{b:1} < MyError::B{b:2});
-        assert!(MyError::B{b:2} < MyError::C);
+        assert!(MyError::A < MyError::B { b: 1 });
+        assert!(MyError::B { b: 1 } < MyError::B { b: 2 });
+        assert!(MyError::B { b: 2 } < MyError::C);
         // Clone
         assert_eq!(MyError::A.clone(), MyError::A);
     }
 
     #[test]
     fn enum_with_pub_derive_and_doc_comment() {
-        custom_error!{
-            ///Doc comment
-            #[derive(PartialEq, PartialOrd)]
-            pub MyError A = "A"
-         };
-         assert_eq!(MyError::A, MyError::A);
+        custom_error! {
+           ///Doc comment
+           #[derive(PartialEq, PartialOrd)]
+           pub MyError A = "A"
+        };
+        assert_eq!(MyError::A, MyError::A);
     }
 
     #[test]
     fn struct_with_error_data() {
-        custom_error!(MyError{broken_things:u8} = "{broken_things} things are broken");
-        assert_eq!("9 things are broken", MyError{ broken_things: 9 }.to_string());
+        custom_error!(MyError { broken_things: u8 } = "{broken_things} things are broken");
+        assert_eq!(
+            "9 things are broken",
+            MyError { broken_things: 9 }.to_string()
+        );
     }
-    
+
     #[test]
     fn struct_with_derive() {
-        custom_error!(#[derive(PartialEq,PartialOrd,Clone,Default)] MyError{x:u8} = ":(");
-        assert_eq!(MyError{ x: 9 }, MyError{ x: 9 }); // Has PartialEq
-        assert_eq!(MyError{ x: 0 }.clone(), MyError{ x: 0 }); // Has Clone
-        assert_eq!(MyError::default(), MyError{ x: 0 }); // Has Default
-        assert!(MyError{ x: 0 } < MyError{ x: 1 }); // Has PartialOrd
+        custom_error!(
+            #[derive(PartialEq, PartialOrd, Clone, Default)]
+            MyError { x: u8 } = ":("
+        );
+        assert_eq!(MyError { x: 9 }, MyError { x: 9 }); // Has PartialEq
+        assert_eq!(MyError { x: 0 }.clone(), MyError { x: 0 }); // Has Clone
+        assert_eq!(MyError::default(), MyError { x: 0 }); // Has Default
+        assert!(MyError { x: 0 } < MyError { x: 1 }); // Has PartialOrd
     }
 
     #[test]
@@ -523,14 +533,20 @@ mod tests {
 
     #[test]
     fn struct_with_multiple_error_data() {
-        custom_error!(E{a:u8, b:u8, c:u8} = "{c} {b} {a}");
+        custom_error!(
+            E {
+                a: u8,
+                b: u8,
+                c: u8
+            } = "{c} {b} {a}"
+        );
 
-        assert_eq!("3 2 1", E{ a: 1, b: 2, c: 3 }.to_string());
+        assert_eq!("3 2 1", E { a: 1, b: 2, c: 3 }.to_string());
     }
 
     #[test]
     fn source() {
-        use std::{io, error::Error};
+        use std::{error::Error, io};
         custom_error!(E A{source: io::Error}="");
         let source: io::Error = io::ErrorKind::InvalidData.into();
         assert_eq!(
@@ -541,12 +557,12 @@ mod tests {
 
     #[test]
     fn struct_source() {
-        use std::{io, error::Error};
-        custom_error!(E{source: io::Error}="");
+        use std::{error::Error, io};
+        custom_error!(E { source: io::Error } = "");
         let source: io::Error = io::ErrorKind::InvalidData.into();
         assert_eq!(
             source.to_string(),
-            E{ source }.source().unwrap().to_string()
+            E { source }.source().unwrap().to_string()
         );
     }
 
@@ -561,7 +577,7 @@ mod tests {
     #[test]
     fn struct_from_source() {
         use std::io;
-        custom_error!(E{source: io::Error}="bella vita");
+        custom_error!(E { source: io::Error } = "bella vita");
         let source = io::Error::from(io::ErrorKind::InvalidData);
         assert_eq!("bella vita", E::from(source).to_string());
     }
@@ -569,10 +585,15 @@ mod tests {
     #[test]
     #[allow(dead_code)]
     fn with_source_and_others() {
-        use std::{io, error::Error};
+        use std::{error::Error, io};
         custom_error!(MyError Zero="", One{x:u8}="", Two{x:u8, source:io::Error}="{x}");
-        fn source() -> io::Error { io::ErrorKind::AlreadyExists.into() };
-        let my_err = MyError::Two { x: 42, source: source() };
+        fn source() -> io::Error {
+            io::ErrorKind::AlreadyExists.into()
+        };
+        let my_err = MyError::Two {
+            x: 42,
+            source: source(),
+        };
         assert_eq!("42", my_err.to_string());
         assert_eq!(source().to_string(), my_err.source().unwrap().to_string());
     }
@@ -580,10 +601,20 @@ mod tests {
     #[test]
     #[allow(dead_code)]
     fn struct_with_source_and_others() {
-        use std::{io, error::Error};
-        custom_error!(MyError{x:u8, source:io::Error}="{x}");
-        fn source() -> io::Error { io::ErrorKind::AlreadyExists.into() };
-        let my_err = MyError{ x: 42, source: source() };
+        use std::{error::Error, io};
+        custom_error!(
+            MyError {
+                x: u8,
+                source: io::Error
+            } = "{x}"
+        );
+        fn source() -> io::Error {
+            io::ErrorKind::AlreadyExists.into()
+        };
+        let my_err = MyError {
+            x: 42,
+            source: source(),
+        };
         assert_eq!("42", my_err.to_string());
         assert_eq!(source().to_string(), my_err.source().unwrap().to_string());
     }
@@ -601,7 +632,15 @@ mod tests {
         mod my_mod {
             custom_error! {pub MyError{} = "case1"}
         }
-        assert_eq!("case1", my_mod::MyError{}.to_string());
+        assert_eq!("case1", my_mod::MyError {}.to_string());
+    }
+
+    #[test]
+    fn pub_error_struct_fields() {
+        mod my_mod {
+            custom_error! {pub MyError{x:u8} = "x={x}"}
+        }
+        assert_eq!("x=9", my_mod::MyError { x: 9 }.to_string());
     }
 
     #[test]
@@ -614,7 +653,7 @@ mod tests {
     #[test]
     fn generic_error_struct() {
         custom_error! {MyError<X,Y>{x:X,y:Y}="x={x} y={y}"}
-        assert_eq!("x=42 y=42", MyError{ x: 42u8, y: 42u8 }.to_string());
+        assert_eq!("x=42 y=42", MyError { x: 42u8, y: 42u8 }.to_string());
     }
 
     #[test]
@@ -626,7 +665,7 @@ mod tests {
     #[test]
     fn single_error_struct_case_with_braces() {
         custom_error! {MyError{} ="bad"}
-        assert_eq!("bad", MyError{}.to_string())
+        assert_eq!("bad", MyError {}.to_string())
     }
 
     #[test]
@@ -682,7 +721,10 @@ mod tests {
 
         assert_eq!(
             "IO Error occurred: Interrupted",
-            MyError::Io { source: io::ErrorKind::Interrupted.into() }.to_string()
+            MyError::Io {
+                source: io::ErrorKind::Interrupted.into()
+            }
+            .to_string()
         )
     }
 
@@ -694,15 +736,19 @@ mod tests {
 
         assert_eq!(
             "IO Error occurred: Interrupted",
-            MyError { source: io::ErrorKind::Interrupted.into() }.to_string()
+            MyError {
+                source: io::ErrorKind::Interrupted.into()
+            }
+            .to_string()
         )
     }
 
     #[test]
     fn lifetime_source_param() {
-
         #[derive(Debug)]
-        struct SourceError<'my_lifetime> { x : &'my_lifetime str }
+        struct SourceError<'my_lifetime> {
+            x: &'my_lifetime str,
+        }
         impl<'a> std::fmt::Display for SourceError<'a> {
             fn fmt(&self, _: &mut std::fmt::Formatter) -> std::fmt::Result {
                 Ok(())
@@ -715,18 +761,22 @@ mod tests {
             Other { source: std::fmt::Error } = "other error"
         }
 
-        let sourced = MyError::Sourced { source : SourceError { x: "I am the source"} };
+        let sourced = MyError::Sourced {
+            source: SourceError {
+                x: "I am the source",
+            },
+        };
         assert_eq!("I am the source", sourced.to_string());
-        let other_err : MyError = std::fmt::Error.into();
+        let other_err: MyError = std::fmt::Error.into();
         assert_eq!("other error", other_err.to_string());
-
     }
 
     #[test]
     fn struct_lifetime_source_param() {
-
         #[derive(Debug)]
-        struct SourceError<'my_lifetime> { x : &'my_lifetime str }
+        struct SourceError<'my_lifetime> {
+            x: &'my_lifetime str,
+        }
         impl<'a> std::fmt::Display for SourceError<'a> {
             fn fmt(&self, _: &mut std::fmt::Formatter) -> std::fmt::Result {
                 Ok(())
@@ -738,33 +788,54 @@ mod tests {
             source : SourceError<'source_lifetime>
         } = @{ source.x },}
 
-        let sourced = MyError{ source : SourceError { x: "I am the source"} };
+        let sourced = MyError {
+            source: SourceError {
+                x: "I am the source",
+            },
+        };
         assert_eq!("I am the source", sourced.to_string());
-
     }
 
     #[test]
     fn lifetime_param_and_type_param() {
         #[derive(Debug)]
-        struct MyType<'a,T> {data: &'a str, _y: T}
+        struct MyType<'a, T> {
+            data: &'a str,
+            _y: T,
+        }
         custom_error! { MyError<'a,T>
             X { d: MyType<'a,T> } = @{ format!("error x: {}", d.data) },
             Y { d: T } = "error y"
         }
-        let err = MyError::X { d : MyType { data: "hello", _y:42i8 } };
+        let err = MyError::X {
+            d: MyType {
+                data: "hello",
+                _y: 42i8,
+            },
+        };
         assert_eq!("error x: hello", err.to_string());
-        let err_y = MyError::Y { d : String::from("my string") };
+        let err_y = MyError::Y {
+            d: String::from("my string"),
+        };
         assert_eq!("error y", err_y.to_string());
     }
 
     #[test]
     fn struct_lifetime_param_and_type_param() {
         #[derive(Debug)]
-        struct MyType<'a,T> {data: &'a str, _y: T}
+        struct MyType<'a, T> {
+            data: &'a str,
+            _y: T,
+        }
         custom_error! { MyError<'a,T> {
             d: MyType<'a,T>
         } = @{ format!("error x: {}", d.data) } }
-        let err = MyError { d : MyType { data: "hello", _y:42i8 } };
+        let err = MyError {
+            d: MyType {
+                data: "hello",
+                _y: 42i8,
+            },
+        };
         assert_eq!("error x: hello", err.to_string());
     }
 }
