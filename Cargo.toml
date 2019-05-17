@@ -16,3 +16,11 @@ edition='2018'
 
 [badges]
 travis-ci = { repository = "lovasoa/custom_error", branch = "master" }
+
+[features]
+default = ["std"]
+# Disable std for use in no_std context.
+std = []
+# Enable allocator_api and try_reserve, to define Error trait
+# for unstable `AllocError` and `TryReserveError` in no-std
+unstable = []
