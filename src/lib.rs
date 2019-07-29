@@ -68,6 +68,10 @@
 ///         `custom_error!(E A{source:X} B{source:X})` is forbidden.
 ///  * If the source field is not the only one, then the automatic conversion
 ///    will not be implemented.
+///  * The type of source must be valid for the `'static` lifetime (because of the type signature of
+///    the [`source()`](https://doc.rust-lang.org/std/error/trait.Error.html#method.source) method).
+///    You can still have a field with a non-static type that you will not name `source`,
+///    and manually implement the error conversion from this type to your error type.
 ///
 /// ```
 /// use custom_error::custom_error;
@@ -98,12 +102,12 @@
 /// ```
 /// use custom_error::custom_error;
 ///
-/// static lang : &'static str = "FR";
+/// static LANG : &'static str = "FR";
 ///
 /// # fn localize(_:&str, _:&str) -> &'static str { "Un problème est survenu" }
 ///
 /// custom_error!{ pub MyError
-///     Problem      = @{ localize(lang, "A problem occurred") },
+///     Problem      = @{ localize(LANG, "A problem occurred") },
 /// }
 ///
 /// assert_eq!("Un problème est survenu", MyError::Problem.to_string());
@@ -141,7 +145,6 @@
 /// assert_ne!(ErrLevel::Small, ErrLevel::Serious);
 /// assert!(ErrLevel::Small < ErrLevel::Serious);
 /// ```
-
 #[macro_export]
 macro_rules! custom_error {
     (
@@ -157,8 +160,7 @@ macro_rules! custom_error {
             $( { $(
                 $attr_name:ident // Name of an attribute of the error variant
                 :
-                $($attr_type:ident)::* // type of the attribute
-                $(< $($attr_type_param:tt),* >)? // Generic (lifetime & type) parameters for the attribute's type
+                $attr_type:ty // type of the attribute
             ),* } )?
             =
             $( @{ $($msg_fun:tt)* } )?
@@ -171,7 +173,7 @@ macro_rules! custom_error {
         $visibility enum $errtype $( < $($type_param),* > )* {
             $(
                 $field
-                $( { $( $attr_name : $($attr_type)::* $(< $($attr_type_param),* >)* ),* } )*
+                $( { $( $attr_name : $attr_type ),* } )*
             ),*
         }
 
@@ -187,7 +189,7 @@ macro_rules! custom_error {
                 match self {$(
                     $errtype::$field $( { $( $attr_name ),* } )* => {
                         $( $(
-                            $crate::return_if_source!($attr_name, $attr_name $(<$($attr_type_param),*>)* )
+                            $crate::return_if_source!($attr_name, $attr_name)
                         );* )*;
                         None
                     }
@@ -203,7 +205,7 @@ macro_rules! custom_error {
                 $($(
                     $attr_name,
                     $attr_name,
-                    $($attr_type)::* $(< $($attr_type_param),* >)*
+                    $attr_type
                 ),*),*
             ])*
         }
@@ -239,8 +241,7 @@ macro_rules! custom_error {
         { $(
             $field_name:ident // Name of an attribute of the error variant
             :
-            $($field_type:ident)::* // type of the attribute
-            $(< $($field_type_param:tt),* >)? // Generic (lifetime & type) parameters for the attribute's type
+            $field_type:ty // type of the attribute
         ),* }
         =
         $( @{ $($msg_fun:tt)* } )?
@@ -250,7 +251,7 @@ macro_rules! custom_error {
         $( #[$meta_attribute] )*
         #[derive(Debug)]
         $visibility struct $errtype $( < $($type_param),* > )* {
-            $( pub $field_name : $($field_type)::* $(< $($field_type_param),* >)* ),*
+            $( pub $field_name : $field_type ),*
         }
 
         $crate::add_type_bounds! {
@@ -263,7 +264,7 @@ macro_rules! custom_error {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
             {
                 $(
-                    $crate::return_if_source!(self, $field_name, $field_name $(<$($field_type_param),*>)* );
+                    $crate::return_if_source!(self, $field_name, $field_name);
                 );*
                 None
             }
@@ -272,7 +273,7 @@ macro_rules! custom_error {
 
         $crate::impl_error_conversion_for_struct!{
             $errtype $(< $($type_param),* >)*,
-            $( $field_name: $($field_type)::* $(< $($field_type_param),* >)* ),*
+            $( $field_name: $field_type ),*
         }
 
         $crate::add_type_bounds! {
@@ -308,9 +309,9 @@ macro_rules! return_if_source {
     ($self:ident, source, $attr_name:ident) => {{
         return Some(&$self.$attr_name);
     }};
-    // If the attribute has a different name or has type parameters, return nothing
-    ($_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => {};
-    ($self:ident, $_attr_name:ident, $_repeat:ident $(<$($_type:tt),*>)* ) => {};
+    // If the attribute has a different name, return nothing
+    ($_attr_name:ident, $_repeat:ident ) => {};
+    ($self:ident, $_attr_name:ident, $_repeat:ident ) => {};
 }
 
 #[doc(hidden)]
@@ -327,12 +328,11 @@ macro_rules! impl_error_conversion {
         $field:ident,
         source,
         $source:ident,
-        $($source_type:ident)::* $( < $($source_type_param:tt),* > )*
+        $source_type:ty
     ) => {
-        impl $( < $($type_param),* > )*
-            From<$($source_type)::* $( < $($source_type_param),* > )*>
+        impl $( < $($type_param),* > )* From<$source_type>
         for $errtype $( < $($type_param),* > )* {
-            fn from(source: $($source_type)::* $( < $($source_type_param),* > )*) -> Self {
+            fn from(source: $source_type) -> Self {
                 $errtype::$field { source }
             }
         }
@@ -343,7 +343,7 @@ macro_rules! impl_error_conversion {
         $(
             $_:ident,
             $_repeated:ident,
-            $($_type:ident)::* $( < $($_type_param:tt),* > )*
+            $_type:ty
         ),*
     ) => {}; // If the list of fields is not a single field named 'source', do nothing
 }
@@ -354,20 +354,17 @@ macro_rules! impl_error_conversion_for_struct {
     ( ( $($prefix:tt)* ) ) => {};
     // implement From<Source> only when there is a single field and it is named 'source'
     (
-        $errtype:ident $( < $($type_param:tt),* > )*,
-        source: $($source_type:ident)::* $( < $($source_type_param:tt),* > )*
+        $errtype:ident, $( < $($type_param:tt),* > )*
+        source: $source_type:ty
     ) => {
-        impl $( < $($type_param),* > )*
-            From<$($source_type)::* $( < $($source_type_param),* > )*>
+        impl $( < $($type_param),* > )* From<$source_type>
         for $errtype $( < $($type_param),* > )* {
-            fn from(source: $($source_type)::* $( < $($source_type_param),* > )*) -> Self {
-                $errtype { source }
-            }
+            fn from(source: $source_type) -> Self { $errtype { source } }
         }
     };
     (
         $_errtype:ident $( < $($_errtype_type_param:tt),* > )*,
-        $( $_field:ident: $($_type:ident)::* $( < $($_type_param:tt),* > )* ),*
+        $( $_field:ident: $_type:ty ),*
     ) => {}; // If the list of fields is not a single field named 'source', do nothing
 }
 
@@ -471,6 +468,20 @@ mod tests {
             "9 things are broken",
             MyError::Catastrophic { broken_things: 9 }.to_string()
         );
+    }
+
+    #[test]
+    fn enum_with_field_lifetime() {
+        custom_error!(MyError
+            Problem{description: &'static str} = "{description}"
+        );
+        assert_eq!("bad", MyError::Problem { description: "bad" }.to_string());
+    }
+
+    #[test]
+    fn struct_with_field_lifetime() {
+        custom_error!(MyError {description: &'static str} = "{}");
+        assert_eq!("bad", MyError { description: "bad" }.to_string());
     }
 
     #[test]
@@ -724,7 +735,7 @@ mod tests {
             MyError::Io {
                 source: io::ErrorKind::Interrupted.into()
             }
-            .to_string()
+                .to_string()
         )
     }
 
@@ -739,7 +750,7 @@ mod tests {
             MyError {
                 source: io::ErrorKind::Interrupted.into()
             }
-            .to_string()
+                .to_string()
         )
     }
 
@@ -757,12 +768,12 @@ mod tests {
         impl<'a> std::error::Error for SourceError<'a> {}
 
         custom_error! { MyError<'source_lifetime>
-            Sourced { source : SourceError<'source_lifetime> } = @{ source.x },
+            Sourced { lifetimed : SourceError<'source_lifetime> } = @{ lifetimed.x },
             Other { source: std::fmt::Error } = "other error"
         }
 
         let sourced = MyError::Sourced {
-            source: SourceError {
+            lifetimed: SourceError {
                 x: "I am the source",
             },
         };
@@ -785,11 +796,11 @@ mod tests {
         impl<'a> std::error::Error for SourceError<'a> {}
 
         custom_error! { MyError<'source_lifetime>{
-            source : SourceError<'source_lifetime>
-        } = @{ source.x },}
+            lifetimed : SourceError<'source_lifetime>
+        } = @{ lifetimed.x },}
 
         let sourced = MyError {
-            source: SourceError {
+            lifetimed: SourceError {
                 x: "I am the source",
             },
         };

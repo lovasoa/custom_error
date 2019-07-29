@@ -1,9 +1,9 @@
 #[macro_use]
 extern crate custom_error;
 
-use std::{fs::File, io, io::Read, io::ErrorKind, num::ParseIntError, result::Result};
+use std::{fs::File, io, io::ErrorKind, io::Read, num::ParseIntError, result::Result};
 
-custom_error!{
+custom_error! {
     OpenFileError
         NotFound{filename: String} = "Tried to open '{filename}', but it doesn't exist",
         Other                      = "An unknown I/O error occured.",
@@ -12,8 +12,10 @@ custom_error!{
 /// Opens a file with a verbose error on failure
 fn open_file_verbose(filename: &str) -> Result<File, OpenFileError> {
     File::open(filename).map_err(|e| match e.kind() {
-            ErrorKind::NotFound => OpenFileError::NotFound{filename: filename.to_string()},
-            _ => OpenFileError::Other
+        ErrorKind::NotFound => OpenFileError::NotFound {
+            filename: filename.to_string(),
+        },
+        _ => OpenFileError::Other,
     })
 }
 
