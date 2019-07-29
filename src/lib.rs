@@ -156,6 +156,7 @@ macro_rules! custom_error {
             ),*
         > )?
         $(
+            $( #[$field_meta:meta] )* // Meta-attributes for the variant, such as a doc comment
             $field:ident // Name of an error variant
             $( { $(
                 $attr_name:ident // Name of an attribute of the error variant
@@ -172,6 +173,7 @@ macro_rules! custom_error {
         #[derive(Debug)]
         $visibility enum $errtype $( < $($type_param),* > )* {
             $(
+                $( #[$field_meta] )*
                 $field
                 $( { $( $attr_name : $attr_type ),* } )*
             ),*
@@ -230,6 +232,8 @@ macro_rules! custom_error {
         }
         }}
     };
+
+    // Simple struct error
     (
         $( #[$meta_attribute:meta] )* // Attributes, like #[derive(SomeTrait)]
         $visibility:vis // `pub` marker
@@ -239,6 +243,7 @@ macro_rules! custom_error {
             ),*
         > )?
         { $(
+            $( #[$field_meta:meta] )* // Field meta attributes, such as doc comments
             $field_name:ident // Name of an attribute of the error variant
             :
             $field_type:ty // type of the attribute
@@ -251,7 +256,10 @@ macro_rules! custom_error {
         $( #[$meta_attribute] )*
         #[derive(Debug)]
         $visibility struct $errtype $( < $($type_param),* > )* {
-            $( pub $field_name : $field_type ),*
+            $(
+                $( #[$field_meta] )*
+                pub $field_name : $field_type
+            ),*
         }
 
         $crate::add_type_bounds! {
@@ -438,6 +446,8 @@ macro_rules! add_type_bounds {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     #[test]
     fn single_error_case() {
         custom_error!(MyError Bad="bad");
@@ -468,6 +478,18 @@ mod tests {
             "9 things are broken",
             MyError::Catastrophic { broken_things: 9 }.to_string()
         );
+    }
+
+    #[test]
+    fn with_doc_comments_for_variants() {
+        custom_error! {MyError
+            /// A bad error
+            Bad="bad",
+            /// Terrible error
+            Terrible="terrible"
+        }
+        assert!(MyError::Bad.source().is_none());
+        assert!(MyError::Terrible.source().is_none());
     }
 
     #[test]
@@ -512,6 +534,25 @@ mod tests {
            pub MyError A = "A"
         };
         assert_eq!(MyError::A, MyError::A);
+    }
+
+    #[test]
+    fn struct_with_public_field() {
+        mod inner {
+            custom_error! {pub MyError {x: &'static str} = "{}"}
+        }
+        assert_eq!("hello", inner::MyError{x: "hello"}.to_string());
+    }
+
+    #[test]
+    fn struct_with_field_documentation() {
+        custom_error! {
+            pub MyError {
+                /// This is a doc comment
+                x: &'static str
+            } = "{}"
+        }
+        assert_eq!("hello", MyError{x: "hello"}.to_string());
     }
 
     #[test]
