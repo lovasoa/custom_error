@@ -268,13 +268,17 @@ macro_rules! custom_error {
         { impl <} {> std::error::Error
             for $errtype $( < $($type_param),* > )*
         {
-            #[allow(unused_variables, unreachable_code)]
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
             {
-                $(
-                    $crate::return_if_source!(self, $field_name, $field_name);
-                );*
-                None
+                #[allow(unused_variables, unreachable_code)]
+                match self {
+                    $errtype { $( $field_name ),* } => {
+                        $({
+                            $crate::return_if_source!($field_name, $field_name)
+                        });*
+                        None
+                    }
+                }
             }
         }
         }}
@@ -312,14 +316,12 @@ macro_rules! custom_error {
 macro_rules! return_if_source {
     // Return the source if the attribute is called 'source'
     (source, $attr_name:ident) => {{
-        return Some($attr_name);
-    }};
-    ($self:ident, source, $attr_name:ident) => {{
-        return Some(&$self.$attr_name);
+        // Borrow is needed in order to support boxed errors
+        // see: https://github.com/lovasoa/custom_error/issues/20
+        return Some(std::borrow::Borrow::borrow($attr_name));
     }};
     // If the attribute has a different name, return nothing
-    ($_attr_name:ident, $_repeat:ident ) => {};
-    ($self:ident, $_attr_name:ident, $_repeat:ident ) => {};
+    ($_attr_name:ident, $_repeat:ident ) => {()};
 }
 
 #[doc(hidden)]
@@ -447,6 +449,7 @@ macro_rules! add_type_bounds {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
+    use std::str::FromStr;
 
     #[test]
     fn single_error_case() {
@@ -534,6 +537,33 @@ mod tests {
            pub MyError A = "A"
         };
         assert_eq!(MyError::A, MyError::A);
+    }
+
+    #[test]
+    fn enum_with_box_dyn_source() {
+        // See https://github.com/lovasoa/custom_error/issues/20
+        custom_error! {pub MyError
+            Dynamic { source: Box<dyn Error> } = "dynamic",
+        }
+        let err = u8::from_str("x").unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            MyError::Dynamic {
+                source: Box::new(err)
+            }.source().unwrap().to_string());
+    }
+
+    #[test]
+    fn struct_with_box_dyn_source() {
+        custom_error! {pub MyError
+            { source: Box<dyn Error> } = "dynamic",
+        }
+        let err = u8::from_str("x").unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            MyError {
+                source: Box::new(err)
+            }.source().unwrap().to_string());
     }
 
     #[test]
