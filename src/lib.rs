@@ -159,6 +159,7 @@ macro_rules! custom_error {
             $( #[$field_meta:meta] )* // Meta-attributes for the variant, such as a doc comment
             $field:ident // Name of an error variant
             $( { $(
+                $( #[$attr_meta:meta] )* // Meta-attributes for the attribute of the error variant
                 $attr_name:ident // Name of an attribute of the error variant
                 :
                 $attr_type:ty // type of the attribute
@@ -175,7 +176,7 @@ macro_rules! custom_error {
             $(
                 $( #[$field_meta] )*
                 $field
-                $( { $( $attr_name : $attr_type ),* } )*
+                $( { $( $( #[$attr_meta] )* $attr_name : $attr_type ),* } )*
             ),*
         }
 
@@ -192,7 +193,7 @@ macro_rules! custom_error {
                     $errtype::$field $( { $( $attr_name ),* } )* => {
                         $( $(
                             $crate::return_if_source!($attr_name, $attr_name)
-                        );* )*;
+                        );* ;)*
                         None
                     }
                 ),*}
@@ -301,7 +302,7 @@ macro_rules! custom_error {
                 // use them in custom error msg blocks without self
                 $(
                     let $field_name = &self.$field_name;
-                );*
+                )*
                 $(write!(formatter, "{}", ($($msg_fun)*) )?;)*
                 $crate::display_message!(formatter, $($field_name),* | $($msg)*);
                 Ok(())
@@ -321,7 +322,9 @@ macro_rules! return_if_source {
         return Some(std::borrow::Borrow::borrow($attr_name));
     }};
     // If the attribute has a different name, return nothing
-    ($_attr_name:ident, $_repeat:ident ) => {()};
+    ($_attr_name:ident, $_repeat:ident ) => {
+        ()
+    };
 }
 
 #[doc(hidden)]
@@ -496,6 +499,22 @@ mod tests {
     }
 
     #[test]
+    #[allow(dead_code)]
+    fn with_doc_comments_for_fields() {
+        custom_error! {MyError
+            Bad {
+                /// Name of the bad field
+                bad: &'static str
+            } = "bad {bad}",
+            Terrible {
+                /// Name of the terrible field
+                terrible: &'static str
+            } = "bad {terrible}",
+        }
+        assert!(MyError::Bad { bad: "heh" }.source().is_none());
+    }
+
+    #[test]
     fn enum_with_field_lifetime() {
         custom_error!(MyError
             Problem{description: &'static str} = "{description}"
@@ -550,7 +569,11 @@ mod tests {
             err.to_string(),
             MyError::Dynamic {
                 source: Box::new(err)
-            }.source().unwrap().to_string());
+            }
+            .source()
+            .unwrap()
+            .to_string()
+        );
     }
 
     #[test]
@@ -563,7 +586,11 @@ mod tests {
             err.to_string(),
             MyError {
                 source: Box::new(err)
-            }.source().unwrap().to_string());
+            }
+            .source()
+            .unwrap()
+            .to_string()
+        );
     }
 
     #[test]
@@ -571,7 +598,7 @@ mod tests {
         mod inner {
             custom_error! {pub MyError {x: &'static str} = "{}"}
         }
-        assert_eq!("hello", inner::MyError{x: "hello"}.to_string());
+        assert_eq!("hello", inner::MyError { x: "hello" }.to_string());
     }
 
     #[test]
@@ -582,7 +609,7 @@ mod tests {
                 x: &'static str
             } = "{}"
         }
-        assert_eq!("hello", MyError{x: "hello"}.to_string());
+        assert_eq!("hello", MyError { x: "hello" }.to_string());
     }
 
     #[test]
@@ -806,7 +833,7 @@ mod tests {
             MyError::Io {
                 source: io::ErrorKind::Interrupted.into()
             }
-                .to_string()
+            .to_string()
         )
     }
 
@@ -821,7 +848,7 @@ mod tests {
             MyError {
                 source: io::ErrorKind::Interrupted.into()
             }
-                .to_string()
+            .to_string()
         )
     }
 
