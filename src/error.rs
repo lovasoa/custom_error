@@ -13,18 +13,22 @@ use core::fmt::{Debug, Display};
 
 /// A copy of the Error trait definition from libstd (for now).
 pub trait Error: Debug + Display {
+    /// Human-readable error description
     fn description(&self) -> &str {
         "description() is deprecated; use Display"
     }
 
+    /// The lower-level source of this error, if any.
     fn cause(&self) -> Option<&dyn Error> {
         self.source()
     }
 
+    /// The lower-level source of this error, if any.
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
     }
 
+    /// type id
     fn type_id(&self) -> TypeId
     where
         Self: 'static,

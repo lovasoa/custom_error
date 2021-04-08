@@ -1,7 +1,24 @@
+#![forbid(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "unstable", feature(allocator_api, try_reserve))]
 
+//! # Rust custom error
+//! This crate contains a [custom_error] macro that should make it easier to define custom errors
+//! without having to write a lot of boilerplate code.
+
 extern crate alloc;
+
+/// We define our own Error trait for no_std.
+#[cfg(not(feature = "std"))]
+mod error;
+
+/// Use the Error trait from `std` by default.
+#[cfg(feature = "std")]
+pub use std::error::Error;
+
+/// Use our own Error trait for `no_std`.
+#[cfg(not(feature = "std"))]
+pub use error::Error;
 
 /// Constructs a custom error type.
 ///
@@ -163,19 +180,6 @@ extern crate alloc;
 /// assert_ne!(ErrLevel::Small, ErrLevel::Serious);
 /// assert!(ErrLevel::Small < ErrLevel::Serious);
 /// ```
-
-/// We define our own Error trait for no_std.
-#[cfg(not(feature = "std"))]
-mod error;
-
-/// Use the Error trait from `std` by default.
-#[cfg(feature = "std")]
-pub use std::error::Error;
-
-/// Use our own Error trait for `no_std`.
-#[cfg(not(feature = "std"))]
-pub use error::Error;
-
 #[macro_export]
 macro_rules! custom_error {
     (
