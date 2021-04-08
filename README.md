@@ -196,3 +196,8 @@ To use the no-std version, disable the std feature in this crate in your `Cargo.
 [dependencies]
 custom_error = { version = "1", default-features = false } # nostd compatible
 ```
+
+### unstable
+
+There is also an `unstable` feature 
+that implements the nostd error trait on `AllocError` and `TryReserveError` in no-std.

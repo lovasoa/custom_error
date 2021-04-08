@@ -3,8 +3,25 @@
 #![cfg_attr(feature = "unstable", feature(allocator_api, try_reserve))]
 
 //! # Rust custom error
-//! This crate contains a [custom_error] macro that should make it easier to define custom errors
+//! This crate contains a [`custom_error!`](custom_error) macro that should make it easier to define custom errors
 //! without having to write a lot of boilerplate code.
+//!
+//! ## Crate features
+//!
+//! ### nostd
+//!
+//! This crate supports [`no-std`](https://docs.rust-embedded.org/book/intro/no-std.html): it can be built without the rust standard library.
+//! To use the no-std version, disable the std feature in this crate in your `Cargo.toml` :
+//!
+//! ```toml
+//! [dependencies]
+//! custom_error = { version = "1", default-features = false } # nostd compatible
+//! ```
+//!
+//! ### unstable
+//!
+//! There is also an `unstable` feature
+//! that implements the nostd error trait on `AllocError` and `TryReserveError` in no-std.
 
 extern crate alloc;
 
