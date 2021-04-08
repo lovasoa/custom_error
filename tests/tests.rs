@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 #[macro_use]
 extern crate custom_error;
 

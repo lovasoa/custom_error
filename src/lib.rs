@@ -82,7 +82,8 @@ extern crate alloc;
 ///    and manually implement the error conversion from this type to your error type.
 ///
 /// ```
-/// use core::{fs::File, io, io::Read, result::Result};
+/// # #[cfg(feature = "std")] {
+/// use std::{fs::File, io, io::Read, result::Result};
 /// use custom_error::custom_error;
 ///
 /// custom_error! {MyError
@@ -100,6 +101,7 @@ extern crate alloc;
 ///     "input/output error",
 ///     read_file("/i'm not a file/").unwrap_err().to_string()
 /// )
+/// # }
 /// ```
 ///
 ///  ### Custom formatting function for error messages
@@ -122,6 +124,7 @@ extern crate alloc;
 /// ```
 ///
 /// ```
+/// # #[cfg(feature = "std")] {
 /// use std::io::Error;
 /// use std::io::ErrorKind::*;
 /// use custom_error::custom_error;
@@ -143,6 +146,7 @@ extern crate alloc;
 ///     }
 ///     .to_string()
 /// );
+/// # }
 /// ```
 ///
 /// ### Derive traits for your errors
