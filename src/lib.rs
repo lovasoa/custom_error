@@ -1,3 +1,8 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "unstable", feature(allocator_api, try_reserve))]
+
+extern crate alloc;
+
 /// Constructs a custom error type.
 ///
 /// # Examples
@@ -8,20 +13,23 @@
 /// ```
 /// use custom_error::custom_error;
 ///
-/// custom_error!{ pub MyError
+/// custom_error! { pub MyError
 ///     Bad      = "Something bad happened",
 ///     Terrible = "This is a very serious error!!!"
 /// }
-/// assert_eq!("Something bad happened",          MyError::Bad.to_string());
-/// assert_eq!("This is a very serious error!!!", MyError::Terrible.to_string());
+/// assert_eq!("Something bad happened", MyError::Bad.to_string());
+/// assert_eq!(
+///     "This is a very serious error!!!",
+///     MyError::Terrible.to_string()
+/// );
 /// ```
 ///
 /// For an error with a single case you can generate a struct:
 /// ```
 /// use custom_error::custom_error;
 ///
-/// custom_error!{ pub MyError{} = "Something bad happened" }
-/// assert_eq!("Something bad happened", MyError{}.to_string());
+/// custom_error! { pub MyError{} = "Something bad happened" }
+/// assert_eq!("Something bad happened", MyError {}.to_string());
 /// ```
 ///
 /// ### Custom error with parameters
@@ -74,10 +82,10 @@
 ///    and manually implement the error conversion from this type to your error type.
 ///
 /// ```
+/// use core::{fs::File, io, io::Read, result::Result};
 /// use custom_error::custom_error;
-/// use std::{io, io::Read, fs::File, result::Result};
 ///
-/// custom_error!{MyError
+/// custom_error! {MyError
 ///     IO{source: io::Error} = "input/output error",
 ///     Unknown               = "unknown error"
 /// }
@@ -102,11 +110,11 @@
 /// ```
 /// use custom_error::custom_error;
 ///
-/// static LANG : &'static str = "FR";
+/// static LANG: &'static str = "FR";
 ///
 /// # fn localize(_:&str, _:&str) -> &'static str { "Un problème est survenu" }
 ///
-/// custom_error!{ pub MyError
+/// custom_error! { pub MyError
 ///     Problem      = @{ localize(LANG, "A problem occurred") },
 /// }
 ///
@@ -114,11 +122,11 @@
 /// ```
 ///
 /// ```
-/// use custom_error::custom_error;
 /// use std::io::Error;
 /// use std::io::ErrorKind::*;
+/// use custom_error::custom_error;
 ///
-/// custom_error!{ pub MyError
+/// custom_error! { pub MyError
 ///     Io{source: Error} = @{
 ///         match source.kind() {
 ///             NotFound => "The file does not exist",
@@ -128,7 +136,13 @@
 ///     },
 /// }
 ///
-/// assert_eq!("The operation timed out", MyError::Io{source: TimedOut.into()}.to_string());
+/// assert_eq!(
+///     "The operation timed out",
+///     MyError::Io {
+///         source: TimedOut.into()
+///     }
+///     .to_string()
+/// );
 /// ```
 ///
 /// ### Derive traits for your errors
@@ -145,6 +159,19 @@
 /// assert_ne!(ErrLevel::Small, ErrLevel::Serious);
 /// assert!(ErrLevel::Small < ErrLevel::Serious);
 /// ```
+
+/// We define our own Error trait for no_std.
+#[cfg(not(feature = "std"))]
+mod error;
+
+/// Use the Error trait from `std` by default.
+#[cfg(feature = "std")]
+pub use std::error::Error;
+
+/// Use our own Error trait for `no_std`.
+#[cfg(not(feature = "std"))]
+pub use error::Error;
+
 #[macro_export]
 macro_rules! custom_error {
     (
@@ -182,11 +209,11 @@ macro_rules! custom_error {
 
         $crate::add_type_bounds! {
         ( $($($type_param),*)* )
-        (std::fmt::Debug + std::fmt::Display)
-        { impl <} {> std::error::Error
+        (core::fmt::Debug + core::fmt::Display)
+        { impl <} {> $crate::Error
             for $errtype $( < $($type_param),* > )*
         {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
+            fn source(&self) -> Option<&(dyn $crate::Error + 'static)>
             {
                 #[allow(unused_variables, unreachable_code)]
                 match self {$(
@@ -215,12 +242,12 @@ macro_rules! custom_error {
 
         $crate::add_type_bounds! {
         ( $($($type_param),*)* )
-        (std::string::ToString)
-        { impl <} {> std::fmt::Display
+        (alloc::string::ToString)
+        { impl <} {> core::fmt::Display
             for $errtype $( < $($type_param),* > )*
         {
-            fn fmt(&self, formatter: &mut std::fmt::Formatter)
-                -> std::fmt::Result
+            fn fmt(&self, formatter: &mut core::fmt::Formatter)
+                -> core::fmt::Result
             {
                 match self {$(
                     $errtype::$field $( { $( $attr_name ),* } )* => {
@@ -265,11 +292,12 @@ macro_rules! custom_error {
 
         $crate::add_type_bounds! {
         ( $($($type_param),*)* )
-        (std::fmt::Debug + std::fmt::Display)
-        { impl <} {> std::error::Error
+        (core::fmt::Debug + core::fmt::Display)
+        { impl <} {> $crate::Error
             for $errtype $( < $($type_param),* > )*
         {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)>
+            #[allow(unused_variables, unreachable_code)]
+            fn source(&self) -> Option<&(dyn $crate::Error + 'static)>
             {
                 #[allow(unused_variables, unreachable_code)]
                 match self {
@@ -291,12 +319,12 @@ macro_rules! custom_error {
 
         $crate::add_type_bounds! {
         ( $($($type_param),*)* )
-        (std::string::ToString)
-        { impl <} {> std::fmt::Display
+        (alloc::string::ToString)
+        { impl <} {> core::fmt::Display
             for $errtype $( < $($type_param),* > )*
         {
-            fn fmt(&self, formatter: &mut std::fmt::Formatter)
-                -> std::fmt::Result
+            fn fmt(&self, formatter: &mut core::fmt::Formatter)
+                -> core::fmt::Result
             {
                 // make fields accessible with variables, so that we can
                 // use them in custom error msg blocks without self
@@ -319,7 +347,7 @@ macro_rules! return_if_source {
     (source, $attr_name:ident) => {{
         // Borrow is needed in order to support boxed errors
         // see: https://github.com/lovasoa/custom_error/issues/20
-        return Some(std::borrow::Borrow::borrow($attr_name));
+        return Some(core::borrow::Borrow::borrow($attr_name));
     }};
     // If the attribute has a different name, return nothing
     ($_attr_name:ident, $_repeat:ident ) => {
@@ -449,7 +477,7 @@ macro_rules! add_type_bounds {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use std::error::Error;
     use std::str::FromStr;
@@ -698,7 +726,7 @@ mod tests {
         custom_error!(MyError Zero="", One{x:u8}="", Two{x:u8, source:io::Error}="{x}");
         fn source() -> io::Error {
             io::ErrorKind::AlreadyExists.into()
-        };
+        }
         let my_err = MyError::Two {
             x: 42,
             source: source(),
@@ -719,7 +747,7 @@ mod tests {
         );
         fn source() -> io::Error {
             io::ErrorKind::AlreadyExists.into()
-        };
+        }
         let my_err = MyError {
             x: 42,
             source: source(),
