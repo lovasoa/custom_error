@@ -1,5 +1,9 @@
 # Rust custom error
 
+[![Rust](https://github.com/lovasoa/custom_error/actions/workflows/rust.yml/badge.svg)](https://github.com/lovasoa/custom_error/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/custom_error)](https://crates.io/crates/custom_error)
+[![docs.rs](https://img.shields.io/docsrs/custom_error)](https://docs.rs/custom_error)
+
 This crate contains a macro that should make it easier
 to define custom errors without having to write a lot of boilerplate code.
 
