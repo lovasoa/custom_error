@@ -186,3 +186,13 @@ custom_error!{ pub MyError
     Unknown = "unknown error"
 }
 ```
+
+## nostd
+
+This crate supports [`no-std`](https://docs.rust-embedded.org/book/intro/no-std.html): it can be built without the rust standard library.
+To use the no-std version, disable the std feature in this crate in your `Cargo.toml` : 
+
+```toml
+[dependencies]
+custom_error = { version = "1", default-features = false } # nostd compatible
+```
