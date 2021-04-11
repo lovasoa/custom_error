@@ -201,3 +201,7 @@ custom_error = { version = "1", default-features = false } # nostd compatible
 
 There is also an `unstable` feature 
 that implements the nostd error trait on `AllocError` and `TryReserveError` in no-std.
+
+## Minimum supported rust version
+
+This crate works and is tested with rust >= [1.36](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1360-2019-07-04)
