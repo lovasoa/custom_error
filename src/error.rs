@@ -37,7 +37,7 @@ pub trait Error: Debug + Display {
     }
 }
 
-impl Error for core::alloc::LayoutError {}
+impl Error for core::alloc::LayoutErr {}
 impl Error for core::array::TryFromSliceError {}
 impl Error for core::cell::BorrowError {}
 impl Error for core::cell::BorrowMutError {}
