@@ -23,6 +23,8 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
+        default: true
+        override: true
     
     - name: test
       uses: actions-rs/cargo@v1
